@@ -51,3 +51,11 @@ bool insidePolygon(Vec2f p, PolyLine<Vec2f>& poly)
 	
 	return inside;
 }
+
+float cint(float x)
+{
+	if (modf(x,0)>=.5)
+		return x>=0?ceil(x):floor(x);
+	else
+		return x<0?ceil(x):floor(x);
+}
