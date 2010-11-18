@@ -24,7 +24,7 @@ public:
 	
 	
 	
-	Tile(Vec2f _pos, float _phi, PolyLine<Vec2f>* _hex)
+	Tile(Vec2f _pos, float _phi, PolyLine<Vec2f>* _hex, int *_state)
 	{
 		pos = _pos;
 		phi = _phi;
@@ -39,6 +39,12 @@ public:
 			state[i] = (i == 1 ? 1 : 0);
 		}
 			
+		setState(_state);
+	}
+	
+	void setState(const int *_state)
+	{
+		memcpy((void*)&state, (void*)_state, 6 * sizeof(int));
 	}
 	
 	void draw()
@@ -168,10 +174,15 @@ void hexApp::setup()
 	
 	
 	tiles = new vector< Tile* >();
-	tiles->push_back(new Tile(Vec2f(200.0f, 200.0f), .0f, hex));
-	tiles->push_back(new Tile(Vec2f(300.0f, 200.0f), .0f, hex));
-	tiles->push_back(new Tile(Vec2f(400.0f, 200.0f), .0f, hex));
-	tiles->push_back(new Tile(Vec2f(500.0f, 200.0f), .0f, hex));
+	
+	int s0[] = {1, 0, 0, 0, 0, 0};
+	int s1[] = {0, 1, 1, 0, 0, 0};
+	int s2[] = {0, 0, 0, 1, 1, 0};
+	int s3[] = {1, 0, 0, 0, 0, 1};
+	tiles->push_back(new Tile(Vec2f(200.0f, 200.0f), .0f, hex, s0));
+	tiles->push_back(new Tile(Vec2f(300.0f, 200.0f), .0f, hex, s1));
+	tiles->push_back(new Tile(Vec2f(400.0f, 200.0f), .0f, hex, s2));
+	tiles->push_back(new Tile(Vec2f(500.0f, 200.0f), .0f, hex, s3));
 	
 	dragging = 0;
 }
