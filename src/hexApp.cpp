@@ -1,6 +1,7 @@
 #include "util.h"
 #include "cinder/gl/gl.h"
 #include <vector>
+#include "cinder/Rand.h"
 
 #define TILERAD 50.0f
 #define TILERAD_MIN math<float>::cos(M_PI/6.0f) * TILERAD
@@ -19,6 +20,8 @@ public:
 	Vec2f pos;
 	float phi;
 	Tile* connections[6];
+	int state[6];
+	
 	
 	
 	Tile(Vec2f _pos, float _phi, PolyLine<Vec2f>* _hex)
@@ -28,8 +31,14 @@ public:
 		
 		hex = _hex;
 		
+		Rand r;
+		
 		for(int i = 0; i< 6; i++)
+		{
 			connections[i] = 0;
+			state[i] = (i == 1 ? 1 : 0);
+		}
+			
 	}
 	
 	void draw()
@@ -47,12 +56,21 @@ public:
 		glBegin(GL_TRIANGLE_FAN);
 		
 		PolyLine<Vec2f>::iterator pt;
+
 		for(pt = hex->begin(); pt < hex->end(); pt++)
 		{
 			gl::vertex(*pt);
 		}
 		
 		glEnd();
+		
+		/*
+		gl::color(Color(1.0f, .0f, .0f));
+		for(pt = hex->begin(); pt < hex->end() - 1; pt++)
+		{
+			gl::vertex(*pt);
+		}
+		 */
 		
 		for(int i = 0; i < 6; i++)
 		{
@@ -61,6 +79,13 @@ public:
 				Vec2f v = (connections[i]->pos - pos)/2.0f;
 				gl::color(Color(.0f, 1.0f, .0f));
 				gl::drawLine(Vec2f(.0f, .0f), v);
+			}
+			
+			if(state[i])
+			{
+				Vec2f p = cart(TILERAD_MIN - 5.0f, -M_PI/2 - i * M_PI/3.0f);
+				gl::color(Color(1.0f, .0f, .0f));
+				gl::drawSolidCircle(p, 5.0f, 32);
 			}
 		}
 		
