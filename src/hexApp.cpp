@@ -3,6 +3,7 @@
 #include <vector>
 
 #define TILERAD 50.0f
+#define TILERAD_MIN math<float>::cos(M_PI/6.0f) * TILERAD
 #define TILECOLOR Color(1.0f, 1.0f, 1.0f)
 #define TILECOLOR2 Color(.5f, .5f, .5f)
 
@@ -17,6 +18,8 @@ public:
 	PolyLine<Vec2f>* hex;
 	Vec2f pos;
 	float phi;
+	Tile* connections[6];
+	
 	
 	Tile(Vec2f _pos, float _phi, PolyLine<Vec2f>* _hex)
 	{
@@ -24,6 +27,9 @@ public:
 		phi = _phi;
 		
 		hex = _hex;
+		
+		for(int i = 0; i< 6; i++)
+			connections[i] = 0;
 	}
 	
 	void draw()
@@ -48,7 +54,59 @@ public:
 		
 		glEnd();
 		
+		for(int i = 0; i < 6; i++)
+		{
+			if(connections[i])
+			{
+				Vec2f v = (connections[i]->pos - pos)/2.0f;
+				gl::color(Color(.0f, 1.0f, .0f));
+				gl::drawLine(Vec2f(.0f, .0f), v);
+			}
+		}
+		
 		glPopMatrix();
+	}
+	
+	void collide(Tile* tile)
+	{
+		Vec2f vec = tile->pos - pos;
+		float rads = math<float>::atan2(vec.x, vec.y) + M_PI;
+		
+		if(vec.length() < 2 * TILERAD_MIN + 5.0f && vec.length() > 2 * TILERAD_MIN - 5.0f)
+		{
+			//
+			
+			for(int i = 0; i < 6; i++)
+			{
+				if(rads < i * M_PI/3.0f + M_PI/24.0f && rads > i * M_PI/3.0f - M_PI/24.0f)
+				{
+					console() << toDegrees(rads) << endl;
+					connect(tile, i);
+					tile->connect(this, (3 + i) % 6);
+				}
+			}
+		}
+		else
+		{
+			disconnect(tile);
+			tile->disconnect(this);
+		}
+		
+		
+	}
+	
+	void connect(Tile* tile, int pos)
+	{
+		connections[pos] = tile;
+	}
+	
+	void disconnect(Tile* tile)
+	{
+		for(int i = 0; i < 6; i++)
+		{
+			if(connections[i] && connections[i] == tile)
+				connections[i] = 0;
+		}
 	}
 };
 
@@ -127,7 +185,16 @@ void hexApp::mouseDrag( MouseEvent event )
 
 void hexApp::update()
 {
-	
+	vector<Tile*>::iterator tile;
+	for(tile = tiles->begin(); tile < tiles->end(); tile++)
+	{
+		vector<Tile*>::iterator tile2;
+		for(tile2 = tile; tile2 < tiles->end(); tile2++)
+		{
+			if(tile != tile2)
+				(*tile)->collide(*tile2);
+		}
+	}
 }
 
 void hexApp::draw()
