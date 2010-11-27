@@ -1,12 +1,16 @@
 #include "util.h"
 #include "cinder/gl/gl.h"
 #include <vector>
+#include <iostream>
+#include <fstream>
+#include "boost/algorithm/string.hpp"
 #include "cinder/rand.h"
+#include "cinder/Filesystem.h"
 
 #define TILERAD 50.0f
 #define TILERAD_MIN math<float>::cos(M_PI/6.0f) * TILERAD
 #define TILECOLOR Color(1.0f, 1.0f, 1.0f)
-#define TILECOLOR2 Color(.2f, .2f, .2f)
+#define TILECOLOR2 Color(.6f, .6f, .6f)
 #define PSPEED 1.0f
 
 using namespace ci;
@@ -19,19 +23,26 @@ public:
 	
 	PolyLine<Vec2f>* hex;
 	
+	int id;
+	
 	Vec2f pos;
 	float phi;
+	float scale;
 	Tile* connections[6];
 	int state[6];
 	
 	
 	
-	Tile(Vec2f _pos, float _phi, PolyLine<Vec2f>* _hex, int *_state)
+	Tile(int _id, Vec2f _pos, float _phi, float _scale, PolyLine<Vec2f>* _hex, int *_state)
 	{
 		pos = _pos;
 		phi = _phi;
+		id = _id;
 		
 		hex = _hex;
+		scale = _scale;
+		
+	//	scale = 1.0f;
 		
 		for(int i = 0; i< 6; i++)
 		{
@@ -57,7 +68,11 @@ public:
 	{
 		glPushMatrix();
 		
+		
+		
 		gl::translate(pos);
+		gl::rotate(phi);
+		gl::scale(Vec3f(scale, scale, 1.0f));
 		
 		gl::color(TILECOLOR);
 		
@@ -75,37 +90,6 @@ public:
 		}
 		
 		glEnd();
-		
-		/*
-		 gl::color(Color(1.0f, .0f, .0f));
-		 for(pt = hex->begin(); pt < hex->end() - 1; pt++)
-		 {
-		 gl::vertex(*pt);
-		 }
-		 */
-		
-		for(int i = 0; i < 6; i++)
-		{
-			if(connections[i])
-			{
-				Vec2f v = (connections[i]->pos - pos)/2.0f;
-				gl::color(Color(.0f, 1.0f, .0f));
-				gl::drawLine(Vec2f(.0f, .0f), v);
-			}
-			
-			if(state[i])
-			{
-				Vec2f p = cart(TILERAD_MIN - 2.0f, -M_PI/2 - i * M_PI/3.0f);
-				gl::color(Color(1.0f, .0f, .0f));
-				//				gl::drawSolidCircle(p, 5.0f, 32);
-				Vec2f pnorm = p.normalized();
-				pnorm.rotate(-M_PI/2.0f);
-				
-				Vec2f p0 = p - 22.0f * pnorm;
-				Vec2f p1 = p + 22.0f * pnorm;
-				gl::drawLine(p0, p1);
-			}
-		}
 		
 		glPopMatrix();
 	}
@@ -298,6 +282,8 @@ class hexApp : public AppBasic {
 	Vec2f dragoffset;
 	ParticleGen *pgen;
 	float last;
+	//ofstream file_out;
+	//ifstream file_in;
 	
   public:
 	void setup();
@@ -307,12 +293,15 @@ class hexApp : public AppBasic {
 	void update();
 	void draw();
 	void prepareSettings(Settings* settings);
+	void keyDown( KeyEvent event );
 };
 
 void hexApp::prepareSettings(Settings* settings)
 {
-	//settings->setWindowSize(1024, 768);
-	settings->setFullScreen(true);
+	settings->setWindowSize(1024, 768);
+	//settings->setFullScreen(true);
+	
+	//file_out = ofstream("params.txt");
 }
 
 void hexApp::setup()
@@ -332,16 +321,85 @@ void hexApp::setup()
 	int s1[] = {0, 1, 1, 0, 0, 0};
 	int s2[] = {0, 0, 0, 1, 1, 0};
 	int s3[] = {1, 0, 0, 0, 0, 1};
-	tiles->push_back(new Tile(Vec2f(200.0f, 200.0f), .0f, hex, s0));
-	tiles->push_back(new Tile(Vec2f(300.0f, 200.0f), .0f, hex, s1));
-	tiles->push_back(new Tile(Vec2f(400.0f, 200.0f), .0f, hex, s2));
-	tiles->push_back(new Tile(Vec2f(500.0f, 200.0f), .0f, hex, s3));
+	
+	ifstream file_in("params.txt");
+	
+	while(!file_in.eof())
+	{
+		char buf[100];
+		file_in.getline(buf, 100);
+		vector<string> strs;
+		boost::algorithm::split(strs, buf, boost::algorithm::is_any_of(","));
+		
+		if(strs.size() < 5) break;
+		
+		tiles->push_back(new Tile((int)atoi(strs[0].c_str()), Vec2f(strtod(strs[1].c_str(), NULL), strtod(strs[2].c_str(), NULL)), 
+								  strtod(strs[3].c_str(), NULL), strtod(strs[4].c_str(), NULL), hex, s0));
+		
+		/*
+		vector<string>::iterator *it;
+		int n = 0;
+		for(it = strs.begin(); it < strs.end(); it++, n++)
+		{
+			string s = *it;
+			
+			float f = (float) strtod(s, NULL);
+		}
+		 */
+	}
+	
+	/*
+	tiles->push_back(new Tile(0, Vec2f(200.0f, 200.0f), .0f, 1.0f, hex, s0));
+	tiles->push_back(new Tile(1, Vec2f(300.0f, 200.0f), .0f, 1.0f, hex, s1));
+	tiles->push_back(new Tile(2, Vec2f(400.0f, 200.0f), .0f, 1.0f, hex, s2));
+	tiles->push_back(new Tile(3, Vec2f(500.0f, 200.0f), .0f, 1.0f, hex, s3));
+	 */
 	
 	dragging = 0;
 	
 	pgen = new ParticleGen(tiles, (*tiles)[0], 2.0f, 15.0f);
 	
 	last = getElapsedSeconds();
+}
+
+void hexApp::keyDown( KeyEvent event )
+{
+	if(dragging && event.getChar() == 'a')
+	{
+		dragging->phi-=.5f;
+	}
+	else if(dragging && event.getChar() == 'd')
+	{
+		dragging->phi+=.5f;
+	}
+	if(dragging && event.getChar() == 'w')
+	{
+		dragging->scale+=.01f;
+	}
+	if(dragging && event.getChar() == 's')
+	{
+		dragging->scale-=.01f;
+	}
+	
+	
+	if(event.getChar() == 'p')
+	{
+		ofstream file_out("params.txt");
+		
+		vector<Tile*>::iterator tile;
+		for(tile = tiles->begin(); tile < tiles->end(); tile++)
+		{
+			Tile &t = *(*tile);
+			
+			file_out << t.id << "," << t.pos.x << "," << t.pos.y << "," << t.phi << "," << t.scale << endl; 
+			
+		}
+		
+		file_out.close();
+		
+		
+	}
+	 
 }
 
 void hexApp::mouseDown( MouseEvent event )
