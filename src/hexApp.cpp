@@ -311,7 +311,8 @@ class hexApp : public AppBasic {
 
 void hexApp::prepareSettings(Settings* settings)
 {
-	settings->setWindowSize(1024, 768);
+	//settings->setWindowSize(1024, 768);
+	settings->setFullScreen(true);
 }
 
 void hexApp::setup()
@@ -338,7 +339,7 @@ void hexApp::setup()
 	
 	dragging = 0;
 	
-	pgen = new ParticleGen(tiles, (*tiles)[0], 10.0f, 10.0f);
+	pgen = new ParticleGen(tiles, (*tiles)[0], 2.0f, 15.0f);
 	
 	last = getElapsedSeconds();
 }
