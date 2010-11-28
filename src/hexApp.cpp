@@ -1,5 +1,7 @@
 #include "util.h"
 #include "cinder/gl/gl.h"
+#include "cinder/ImageIo.h"
+#include "cinder/gl/Texture.h"
 #include <vector>
 #include <iostream>
 #include <fstream>
@@ -68,6 +70,14 @@ public:
 	{
 		glPushMatrix();
 		
+		glDisable(GL_BLEND);
+		glColorMask(GL_FALSE, GL_FALSE, GL_FALSE, GL_TRUE);
+		
+		glColor4f(0, 0, 0, 1);
+		gl::drawSolidRect(Rectf(0, 0, 1024, 768));
+		
+		glEnable(GL_BLEND);
+		glColorMask(GL_TRUE, GL_TRUE, GL_TRUE, GL_TRUE);
 		
 		
 		gl::translate(pos);
@@ -91,6 +101,32 @@ public:
 		
 		glEnd();
 		
+		glDisable(GL_BLEND);
+		glColorMask(GL_FALSE, GL_FALSE, GL_FALSE, GL_TRUE);
+		
+		glColor4f(0, 0, 0, 1);
+		gl::drawSolidRect(Rectf(0, 0, 1024, 768));
+		
+		glColor4f(1, 1, 1, 0);
+		
+		glBegin(GL_TRIANGLE_FAN);
+		
+		for(pt = hex->begin(); pt < hex->end(); pt++)
+		{
+			gl::vertex(*pt);
+		}
+		
+		glEnd();
+		
+		glColorMask(GL_TRUE, GL_TRUE, GL_TRUE, GL_TRUE);
+		glEnable(GL_BLEND);
+		glBlendFunc(GL_ONE_MINUS_DST_ALPHA, GL_DST_ALPHA);
+		
+		gl::color(Color(1.0f, .0f, .0f));
+		gl::drawSolidCircle(Vec2f(20.0f, 20.0f), 60.0f, 16);
+		
+		glBlendFunc (GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+
 		glPopMatrix();
 	}
 	
@@ -285,6 +321,8 @@ class hexApp : public AppBasic {
 	//ofstream file_out;
 	//ifstream file_in;
 	
+	Surface surf_tank;
+	
   public:
 	void setup();
 	void mouseDown( MouseEvent event );	
@@ -306,6 +344,8 @@ void hexApp::prepareSettings(Settings* settings)
 
 void hexApp::setup()
 {
+	surf_tank = Surface(loadImage(loadResource("tank.png")));
+	
 	PolyLine<Vec2f> * hex = new PolyLine<Vec2f>();
 	hex->setClosed(true);
 	
@@ -318,9 +358,8 @@ void hexApp::setup()
 	tiles = new vector< Tile* >();
 	
 	int s0[] = {1, 0, 0, 0, 0, 0};
-	int s1[] = {0, 1, 1, 0, 0, 0};
-	int s2[] = {0, 0, 0, 1, 1, 0};
-	int s3[] = {1, 0, 0, 0, 0, 1};
+	
+	// read tile pos/phi/scale params from file
 	
 	ifstream file_in("params.txt");
 	
@@ -336,24 +375,7 @@ void hexApp::setup()
 		tiles->push_back(new Tile((int)atoi(strs[0].c_str()), Vec2f(strtod(strs[1].c_str(), NULL), strtod(strs[2].c_str(), NULL)), 
 								  strtod(strs[3].c_str(), NULL), strtod(strs[4].c_str(), NULL), hex, s0));
 		
-		/*
-		vector<string>::iterator *it;
-		int n = 0;
-		for(it = strs.begin(); it < strs.end(); it++, n++)
-		{
-			string s = *it;
-			
-			float f = (float) strtod(s, NULL);
-		}
-		 */
 	}
-	
-	/*
-	tiles->push_back(new Tile(0, Vec2f(200.0f, 200.0f), .0f, 1.0f, hex, s0));
-	tiles->push_back(new Tile(1, Vec2f(300.0f, 200.0f), .0f, 1.0f, hex, s1));
-	tiles->push_back(new Tile(2, Vec2f(400.0f, 200.0f), .0f, 1.0f, hex, s2));
-	tiles->push_back(new Tile(3, Vec2f(500.0f, 200.0f), .0f, 1.0f, hex, s3));
-	 */
 	
 	dragging = 0;
 	
@@ -457,6 +479,7 @@ void hexApp::draw()
 {
 	// clear out the window with black
 	gl::clear( Color( 0, 0, 0 ) ); 
+	gl::enableAlphaBlending();
 	
 	vector<Tile*>::iterator tile;
 	for(tile = tiles->begin(); tile < tiles->end(); tile++)
@@ -464,7 +487,15 @@ void hexApp::draw()
 		(*tile)->draw();
 	}
 	
-	pgen->draw();
+//	pgen->draw();
+	
+	//gl::draw(gl::Texture(surf_tank), getWindowBounds());
+	glPushMatrix();
+	gl::translate((*tiles)[0]->pos - Vec2f(surf_tank.getWidth()/2.0f, surf_tank.getHeight()/2.0f));
+//	gl::draw(gl::Texture(surf_tank), surf_tank.getBounds());
+	
+	glPopMatrix();
+	
 }
 
 
