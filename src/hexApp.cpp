@@ -1,315 +1,13 @@
-#include "util.h"
-#include "cinder/gl/gl.h"
+#include "ParticleGen.h"
 #include "cinder/ImageIo.h"
-#include "cinder/gl/Texture.h"
-#include <vector>
 #include <iostream>
 #include <fstream>
 #include "boost/algorithm/string.hpp"
-#include "cinder/rand.h"
 #include "cinder/Filesystem.h"
-
-#define TILERAD 50.0f
-#define TILERAD_MIN math<float>::cos(M_PI/6.0f) * TILERAD
-#define TILECOLOR Color(1.0f, 1.0f, 1.0f)
-#define TILECOLOR2 Color(.6f, .6f, .6f)
-#define PSPEED 1.0f
 
 using namespace ci;
 using namespace ci::app;
 using namespace std;
-
-class Tile
-{
-public:
-	
-	PolyLine<Vec2f>* hex;
-	
-	int id;
-	
-	Vec2f pos;
-	float phi;
-	float scale;
-	Tile* connections[6];
-	int state[6];
-	
-	
-	
-	Tile(int _id, Vec2f _pos, float _phi, float _scale, PolyLine<Vec2f>* _hex, int *_state)
-	{
-		pos = _pos;
-		phi = _phi;
-		id = _id;
-		
-		hex = _hex;
-		scale = _scale;
-		
-	//	scale = 1.0f;
-		
-		for(int i = 0; i< 6; i++)
-		{
-			connections[i] = 0;
-			state[i] = (i == 1 ? 1 : 0);
-		}
-		
-		setState(_state);
-	}
-	
-	static int getIndexForAngle(float angle)
-	{
-		//return (int) ((-angle-M_PI/2.0f) / (M_PI/3.0f));
-		return (int( (angle + M_PI - M_PI/6.0f) /(M_PI/3.0f)) + 1) % 6;
-	}
-	
-	void setState(const int *_state)
-	{
-		memcpy((void*)&state, (void*)_state, 6 * sizeof(int));
-	}
-	
-	void draw()
-	{
-		glPushMatrix();
-		
-		glDisable(GL_BLEND);
-		glColorMask(GL_FALSE, GL_FALSE, GL_FALSE, GL_TRUE);
-		
-		glColor4f(0, 0, 0, 1);
-		gl::drawSolidRect(Rectf(0, 0, 1024, 768));
-		
-		glEnable(GL_BLEND);
-		glColorMask(GL_TRUE, GL_TRUE, GL_TRUE, GL_TRUE);
-		
-		
-		gl::translate(pos);
-		gl::rotate(phi);
-		gl::scale(Vec3f(scale, scale, 1.0f));
-		
-		gl::color(TILECOLOR);
-		
-		gl::draw(*hex);
-		
-		gl::color(TILECOLOR2);
-		
-		glBegin(GL_TRIANGLE_FAN);
-		
-		PolyLine<Vec2f>::iterator pt;
-		
-		for(pt = hex->begin(); pt < hex->end(); pt++)
-		{
-			gl::vertex(*pt);
-		}
-		
-		glEnd();
-		
-		glDisable(GL_BLEND);
-		glColorMask(GL_FALSE, GL_FALSE, GL_FALSE, GL_TRUE);
-		
-		glColor4f(0, 0, 0, 1);
-		gl::drawSolidRect(Rectf(0, 0, 1024, 768));
-		
-		glColor4f(1, 1, 1, 0);
-		
-		glBegin(GL_TRIANGLE_FAN);
-		
-		for(pt = hex->begin(); pt < hex->end(); pt++)
-		{
-			gl::vertex(*pt);
-		}
-		
-		glEnd();
-		
-		glColorMask(GL_TRUE, GL_TRUE, GL_TRUE, GL_TRUE);
-		glEnable(GL_BLEND);
-		glBlendFunc(GL_ONE_MINUS_DST_ALPHA, GL_DST_ALPHA);
-		
-		gl::color(Color(1.0f, .0f, .0f));
-		gl::drawSolidCircle(Vec2f(20.0f, 20.0f), 60.0f, 16);
-		
-		glBlendFunc (GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
-
-		glPopMatrix();
-	}
-	
-	void collide(Tile* tile)
-	{
-		Vec2f vec = tile->pos - pos;
-		float rads = math<float>::atan2(vec.x, vec.y) + M_PI;
-		
-		if(vec.length() < 2 * TILERAD_MIN + 5.0f && vec.length() > 2 * TILERAD_MIN - 5.0f)
-		{
-			//
-			
-			for(int i = 0; i < 6; i++)
-			{
-				if(rads < i * M_PI/3.0f + M_PI/24.0f && rads > i * M_PI/3.0f - M_PI/24.0f)
-				{
-					//console() << toDegrees(rads) << endl;
-					connect(tile, i);
-					tile->connect(this, (3 + i) % 6);
-				}
-			}
-		}
-		else
-		{
-			disconnect(tile);
-			tile->disconnect(this);
-		}
-		
-		
-	}
-	
-	void connect(Tile* tile, int pos)
-	{
-		connections[pos] = tile;
-	}
-	
-	void disconnect(Tile* tile)
-	{
-		for(int i = 0; i < 6; i++)
-		{
-			if(connections[i] && connections[i] == tile)
-				connections[i] = 0;
-		}
-	}
-};
-
-class Particle
-{
-public:
-	Vec2f pos, vel;
-	Tile *tile;
-	float expired, lifetime;
-	Rand *rand;
-	
-	vector<Tile*> *tiles;
-	
-	Particle(vector<Tile*> *_tiles, Tile *_tile, Vec2f _pos, float _lifetime, Rand* _r)
-	{
-		tiles = _tiles;
-		tile = _tile;
-		lifetime = _lifetime;
-		pos = _pos;
-		expired = .0f;
-		rand = _r;
-		vel = Vec2f(rand->nextFloat(-PSPEED, PSPEED), rand->nextFloat(-PSPEED, PSPEED));
-	}
-	
-	void update(float dt)
-	{
-		Vec2f newpos = pos + vel;
-		
-		if(insidePolygon(newpos - tile->pos, (*tile->hex)))
-		{
-			pos = newpos;
-			
-		}
-		else 
-		{
-			Vec2f newpos2 = pos + vel * 15.0f;
-			
-			Vec2f exitdir = newpos2 - tile->pos;
-			
-			bool wander = false;
-			vector<Tile*>::iterator tileit;
-			
-			int idx = Tile::getIndexForAngle(math<float>::atan2(exitdir.x, exitdir.y));
-			console() << idx << endl;
-			
-			for(tileit = tiles->begin(); tileit < tiles->end(); tileit++)
-			{
-				if(insidePolygon(newpos2 - (*tileit)->pos, *(*tileit)->hex) &&
-				   tile->connections[idx] &&
-				   !tile->state[idx] &&
-				   !(*tileit)->state[(idx+3) % 6])
-				{
-					pos = newpos;
-					wander = true;
-					tile = tile->connections[idx];
-				}
-			}
-
-			if(!wander)
-			{
-				Rand r;
-				vel = Vec2f(rand->nextFloat(-PSPEED, PSPEED), rand->nextFloat(-PSPEED, PSPEED));
-			}
-		}
-		
-		
-		expired += dt;
-	}
-	
-	void draw()
-	{
-		glPushMatrix();
-		
-		gl::translate(pos);
-		
-		gl::color(Color(.5f, .5f, 1.0f));
-		gl::drawSolidCircle(Vec2f(.0f, .0f), 5.0f, 16);
-		
-		glPopMatrix();
-	}
-};
-
-class ParticleGen
-{
-public:
-	Tile *tile;
-	vector<Particle*> particles;
-	float interval, lifetime, acc;
-	Vec2f pos;
-	Rand *rand;
-	vector<Tile*> *tiles;
-	
-	ParticleGen(vector<Tile*> *_tiles, Tile* _tile, float _iv, float _lt)
-	{
-		tiles = _tiles;
-		pos = _tile->pos;
-		tile = _tile;
-		interval = _iv;
-		lifetime = _lt;
-		acc = .0f;
-		
-		rand = new Rand();
-	}
-	
-	void update(float dt)
-	{
-		acc += dt;
-		
-		if(acc > interval)
-		{
-			acc = .0f;
-			particles.push_back(new Particle(tiles, tile, pos, lifetime, rand));
-		}
-		
-		vector<Particle*>::iterator it;
-		for(it = particles.begin(); it < particles.end(); it++)
-		{
-			if((*it)->expired > (*it)->lifetime)
-			{
-				particles.erase(it);
-				continue;
-			}
-			
-			(*it)->update(dt);
-		}
-	}
-	
-	void draw()
-	{
-		vector<Particle*>::iterator it;
-		for(it = particles.begin(); it < particles.end(); it++)
-		{
-			(*it)->draw();
-		}
-	}
-};
-
-
-
-
 
 class hexApp : public AppBasic {
 
@@ -336,7 +34,7 @@ class hexApp : public AppBasic {
 
 void hexApp::prepareSettings(Settings* settings)
 {
-	settings->setWindowSize(1024, 768);
+	settings->setWindowSize(WIDTH, HEIGHT);
 	//settings->setFullScreen(true);
 	
 	//file_out = ofstream("params.txt");
@@ -379,9 +77,11 @@ void hexApp::setup()
 	
 	dragging = 0;
 	
-	pgen = new ParticleGen(tiles, (*tiles)[0], 2.0f, 15.0f);
+	pgen = new ParticleGen(tiles, (*tiles)[1], 2.0f, 15.0f);
 	
 	last = getElapsedSeconds();
+	
+	(*tiles)[3]->item = new gl::Texture(surf_tank);
 }
 
 void hexApp::keyDown( KeyEvent event )
@@ -432,7 +132,7 @@ void hexApp::mouseDown( MouseEvent event )
 	for(tile = tiles->begin(); tile < tiles->end(); tile++)
 	{
 		Vec2f collpos = mpos - (*tile)->pos;
-		if(insidePolygon(collpos, (*(*tile)->hex)))
+		if(insidePolygon(collpos, (*(*tile)->hex), (*tile)->scale))
 		{
 			//console() << "dragging on" << endl;
 			dragoffset = collpos;
@@ -473,6 +173,8 @@ void hexApp::update()
 		}
 	}
 	pgen->update(dt);
+	
+	(*tiles)[3]->item_pos = Vec2f(math<float>::sin(getElapsedSeconds()) * 20.0f, .0f);
 }
 
 void hexApp::draw()
@@ -484,17 +186,14 @@ void hexApp::draw()
 	vector<Tile*>::iterator tile;
 	for(tile = tiles->begin(); tile < tiles->end(); tile++)
 	{
-		(*tile)->draw();
+		(*tile)->draw(pgen->particles);
 	}
+	
+	
 	
 //	pgen->draw();
 	
 	//gl::draw(gl::Texture(surf_tank), getWindowBounds());
-	glPushMatrix();
-	gl::translate((*tiles)[0]->pos - Vec2f(surf_tank.getWidth()/2.0f, surf_tank.getHeight()/2.0f));
-//	gl::draw(gl::Texture(surf_tank), surf_tank.getBounds());
-	
-	glPopMatrix();
 	
 }
 
