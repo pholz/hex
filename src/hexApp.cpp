@@ -1,5 +1,6 @@
 #include "ParticleGen.h"
 #include "cinder/ImageIo.h"
+#include "cinder/Camera.h"
 #include <iostream>
 #include <fstream>
 #include "boost/algorithm/string.hpp"
@@ -16,10 +17,13 @@ class hexApp : public AppBasic {
 	Vec2f dragoffset;
 	ParticleGen *pgen;
 	float last;
+	PolyLine<Vec2f> * hex;
 	//ofstream file_out;
 	//ifstream file_in;
 	
 	Surface surf_tank;
+	CameraOrtho cam;
+	int maxid;
 	
   public:
 	void setup();
@@ -42,9 +46,12 @@ void hexApp::prepareSettings(Settings* settings)
 
 void hexApp::setup()
 {
+	cam = CameraOrtho(0, getWindowWidth(), getWindowHeight(), 0, 0, 1000);
+	cam.lookAt(Vec3f(0, 0, 10.0f), Vec3f(0, 0, .0f));
+	
 	surf_tank = Surface(loadImage(loadResource("tank.png")));
 	
-	PolyLine<Vec2f> * hex = new PolyLine<Vec2f>();
+	hex = new PolyLine<Vec2f>();
 	hex->setClosed(true);
 	
 	for(int i = 0; i < 6; i++)
@@ -61,6 +68,7 @@ void hexApp::setup()
 	
 	ifstream file_in("params.txt");
 	
+	maxid = 0;
 	while(!file_in.eof())
 	{
 		char buf[100];
@@ -70,8 +78,15 @@ void hexApp::setup()
 		
 		if(strs.size() < 5) break;
 		
-		tiles->push_back(new Tile((int)atoi(strs[0].c_str()), Vec2f(strtod(strs[1].c_str(), NULL), strtod(strs[2].c_str(), NULL)), 
-								  strtod(strs[3].c_str(), NULL), strtod(strs[4].c_str(), NULL), hex, s0));
+		if((int)atoi(strs[0].c_str()) > maxid) maxid = (int)atoi(strs[0].c_str());
+		
+		tiles->push_back(new Tile((int)atoi(strs[0].c_str()), //id
+								  Vec2f(strtod(strs[1].c_str(), NULL), strtod(strs[2].c_str(), NULL)), //pos
+								  strtod(strs[3].c_str(), NULL), //z
+								  strtod(strs[4].c_str(), NULL), //phi
+								  strtod(strs[5].c_str(), NULL), //scale
+								  hex, 
+								  s0));
 		
 	}
 	
@@ -102,6 +117,35 @@ void hexApp::keyDown( KeyEvent event )
 	{
 		dragging->scale-=.01f;
 	}
+	if(dragging && event.getChar() == 'z')
+	{
+		dragging->z -= .05f;
+	}
+	if(dragging && event.getChar() == 'x')
+	{
+		dragging->z += .05f;
+	}
+	if(dragging && event.getChar() == '+')
+	{
+		dragging->pulseSpeed+=.1f;
+	}
+	if(dragging && event.getChar() == '-')
+	{
+		dragging->pulseSpeed-=.1f;
+	}
+	
+	if(event.getChar() == 't')
+	{
+		int s0[] = {1, 0, 0, 0, 0, 0};
+		tiles->push_back(new Tile(maxid+1, 
+								  Vec2f(this->getMousePos()), 
+								  .0f, //z
+								  .0f, //phi
+								  1.0f, //scale
+								  hex, 
+								  s0));
+		++maxid;
+	}
 	
 	
 	if(event.getChar() == 'p')
@@ -113,7 +157,7 @@ void hexApp::keyDown( KeyEvent event )
 		{
 			Tile &t = *(*tile);
 			
-			file_out << t.id << "," << t.pos.x << "," << t.pos.y << "," << t.phi << "," << t.scale << endl; 
+			file_out << t.id << "," << t.pos.x << "," << t.pos.y << "," << t.z << "," << t.phi << "," << t.scale << endl; 
 			
 		}
 		
@@ -163,8 +207,11 @@ void hexApp::update()
 	last = now;
 	
 	vector<Tile*>::iterator tile;
+	
 	for(tile = tiles->begin(); tile < tiles->end(); tile++)
 	{
+		(*tile)->update(dt);
+		
 		vector<Tile*>::iterator tile2;
 		for(tile2 = tile; tile2 < tiles->end(); tile2++)
 		{
@@ -179,9 +226,14 @@ void hexApp::update()
 
 void hexApp::draw()
 {
+	glPushMatrix();
 	// clear out the window with black
 	gl::clear( Color( 0, 0, 0 ) ); 
 	gl::enableAlphaBlending();
+	gl::enableDepthRead(true);
+	gl::enableDepthWrite(true);
+	
+	gl::setMatrices(cam);
 	
 	vector<Tile*>::iterator tile;
 	for(tile = tiles->begin(); tile < tiles->end(); tile++)
@@ -194,6 +246,7 @@ void hexApp::draw()
 //	pgen->draw();
 	
 	//gl::draw(gl::Texture(surf_tank), getWindowBounds());
+	glPopMatrix();
 	
 }
 
