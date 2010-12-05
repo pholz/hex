@@ -37,8 +37,10 @@ public:
 	
 	float pulseSpeed;
 	float pulseCounter;
+	float brightness;
 	
 	Tile(int _id, Vec2f _pos, float z, float _phi, float _scale, PolyLine<Vec2f>* _hex, int *_state);
+	~Tile();
 	static int getIndexForAngle(float angle);
 	void setState(const int *_state);
 	void update(float dt);

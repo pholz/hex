@@ -38,6 +38,12 @@ Tile::Tile(int _id, Vec2f _pos, float _z, float _phi, float _scale, PolyLine<Vec
 	
 	pulseSpeed = .0f;
 	pulseCounter = .0f;
+	brightness = .0f;
+}
+
+Tile::~Tile()
+{
+	delete hex;
 }
 
 int Tile::getIndexForAngle(float angle)
@@ -91,8 +97,12 @@ void Tile::draw(vector<Particle*> &particles)
 	
 	gl::draw(*hex);
 	
-	if(!pulseSpeed)
+	if(!pulseSpeed && !brightness)
 		gl::color(TILECOLOR2);
+	else if(brightness)
+	{
+		gl::color(Color(brightness, brightness, brightness));
+	}
 	else
 	{
 		float b = math<float>::abs(math<float>::sin(pulseCounter));

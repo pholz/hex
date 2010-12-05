@@ -21,6 +21,12 @@ ParticleGen::ParticleGen(vector<Tile*> *_tiles, Tile* _tile, float _iv, float _l
 	rand = new Rand();
 }
 
+ParticleGen::~ParticleGen()
+{
+	particles.clear();
+	delete rand;
+}
+
 void ParticleGen::update(float dt)
 {
 	acc += dt;

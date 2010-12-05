@@ -20,6 +20,7 @@ public:
 	vector<Tile*> *tiles;
 	
 	ParticleGen(vector<Tile*> *_tiles, Tile* _tile, float _iv, float _lt);
+	~ParticleGen();
 	
 	void update(float dt);
 	

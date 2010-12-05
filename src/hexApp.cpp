@@ -5,6 +5,12 @@
 #include <fstream>
 #include "boost/algorithm/string.hpp"
 #include "cinder/Filesystem.h"
+#include "OscListener.h"
+#include "OscSender.h"
+
+#define OSC_SEND_HOST "localhost"
+#define OSC_SEND_PORT 5000
+#define OSC_RECEIVE_PORT 3000
 
 using namespace ci;
 using namespace ci::app;
@@ -17,7 +23,6 @@ class hexApp : public AppBasic {
 	Vec2f dragoffset;
 	ParticleGen *pgen;
 	float last;
-	PolyLine<Vec2f> * hex;
 	//ofstream file_out;
 	//ifstream file_in;
 	
@@ -26,6 +31,10 @@ class hexApp : public AppBasic {
 	int maxid;
 	float zoom;
 	float defaultfactors[6];
+	Vec3f globalTranslate;
+	
+	osc::Listener listener;
+	osc::Sender sender;
 	
   public:
 	void setup();
@@ -37,6 +46,8 @@ class hexApp : public AppBasic {
 	void prepareSettings(Settings* settings);
 	void keyDown( KeyEvent event );
 	PolyLine<Vec2f>* genHex(float* factors);
+	void shutdown();
+	void oscUpdate();
 };
 
 void hexApp::prepareSettings(Settings* settings)
@@ -62,6 +73,11 @@ PolyLine<Vec2f>* hexApp::genHex(float* factors)
 
 void hexApp::setup()
 {
+	sender.setup(OSC_SEND_HOST, OSC_SEND_PORT);
+	listener.setup(OSC_RECEIVE_PORT);
+	
+	globalTranslate = Vec3f(.0f, .0f, .0f);
+	
 	cam = CameraOrtho(0, getWindowWidth(), getWindowHeight(), 0, 0, 1000);
 	//cam = CameraPersp( getWindowWidth(), getWindowHeight(), 50, 0.1, 10000 );
 	zoom = 1000.0f;
@@ -111,7 +127,35 @@ void hexApp::setup()
 	
 	last = getElapsedSeconds();
 	
-	(*tiles)[3]->item = new gl::Texture(surf_tank);
+	//(*tiles)[3]->item = new gl::Texture(surf_tank);
+}
+
+void hexApp::oscUpdate()
+{
+	
+	
+	while (listener.hasWaitingMessages()) {
+		osc::Message message;
+		listener.getNextMessage(&message);
+		
+		string addr = message.getAddress();
+		
+		if(addr == "/max/vol"  && message.getNumArgs() == 1)
+		{
+			try {
+				
+				
+				float vol = message.getArgAsFloat(0);
+				if(dragging)
+				{
+					dragging->brightness = vol;
+				}
+								
+			} catch (...) {
+				console() << "Exception reading argument as float" << std::endl;
+			}
+		}
+	}
 }
 
 void hexApp::keyDown( KeyEvent event )
@@ -124,15 +168,31 @@ void hexApp::keyDown( KeyEvent event )
 	{
 		dragging->phi+=.5f;
 	}
-	if(dragging && event.getChar() == 'w')
+	else if(dragging && event.getChar() == 'w')
 	{
 		dragging->scale+=.01f;
 	}
-	if(dragging && event.getChar() == 's')
+	else if(dragging && event.getChar() == 's')
 	{
 		dragging->scale-=.01f;
 	}
-	if(dragging && event.getChar() == 'i')
+	else if(event.getChar() == 'l')
+	{
+		globalTranslate.x += 1.0f;
+	}
+	else if(event.getChar() == '\'')
+	{
+		globalTranslate.x -= 1.0f;
+	}
+	else if(event.getChar() == 'p')
+	{
+		globalTranslate.y += 1.0f;
+	}
+	else if(event.getChar() == ';')
+	{
+		globalTranslate.y -= 1.0f;
+	}
+	else if(dragging && event.getChar() == 'i')
 	{
 		dragging->ry-=.5f;
 	}
@@ -140,55 +200,55 @@ void hexApp::keyDown( KeyEvent event )
 	{
 		dragging->ry+=.5f;
 	}
-	if(dragging && event.getChar() == 'j')
+	else if(dragging && event.getChar() == 'j')
 	{
 		dragging->rx-=.5f;
 	}
-	if(dragging && event.getChar() == 'l')
+	else if(dragging && event.getChar() == 'l')
 	{
 		dragging->rx+=.5f;
 	}
-	if(dragging && event.getChar() == 'z')
+	else if(dragging && event.getChar() == 'z')
 	{
 		dragging->z -= .05f;
 	}
-	if(dragging && event.getChar() == 'x')
+	else if(dragging && event.getChar() == 'x')
 	{
 		dragging->z += .05f;
 	}
-	if(dragging && event.getChar() == '+')
+	else if(dragging && event.getChar() == '+')
 	{
 		dragging->pulseSpeed+=.1f;
 	}
-	if(dragging && event.getChar() == '-')
+	else if(dragging && event.getChar() == '-')
 	{
 		dragging->pulseSpeed-=.1f;
 	}
-	if(dragging && event.getChar() == 'c')
+	else if(dragging && event.getChar() == 'c')
 	{
 		dragging->selectedCorner++;
 		if(dragging->selectedCorner == 6) dragging->selectedCorner = -1;
 	}
-	if(dragging && event.getChar() == '.' && dragging->selectedCorner >= 0)
+	else if(dragging && event.getChar() == '.' && dragging->selectedCorner >= 0)
 	{
 		dragging->hex->getPoints()[dragging->selectedCorner] += Vec2f( dragging->hex->getPoints()[dragging->selectedCorner].normalized() );
 	}
 	
-	if(dragging && event.getChar() == ',' && dragging->selectedCorner >= 0)
+	else if(dragging && event.getChar() == ',' && dragging->selectedCorner >= 0)
 	{
 		dragging->hex->getPoints()[dragging->selectedCorner] -= Vec2f( dragging->hex->getPoints()[dragging->selectedCorner].normalized() );
 	}
 	
-	if(event.getChar() == ']')
+	else if(event.getChar() == ']')
 	{
 		zoom -= 1.0f;
 	}
-	if(event.getChar() == '[')
+	else if(event.getChar() == '[')
 	{
 		zoom += 1.0f;
 	}
 	
-	if(event.getChar() == 't')
+	else if(event.getChar() == 't')
 	{
 		int s0[] = {1, 0, 0, 0, 0, 0};
 		tiles->push_back(new Tile(maxid+1, 
@@ -202,7 +262,7 @@ void hexApp::keyDown( KeyEvent event )
 	}
 	
 	
-	if(event.getChar() == 'p')
+	else if(event.getChar() == 'p')
 	{
 		ofstream file_out("params.txt");
 		
@@ -275,6 +335,7 @@ void hexApp::update()
 	
 	vector<Tile*>::iterator tile;
 	
+	
 	for(tile = tiles->begin(); tile < tiles->end(); tile++)
 	{
 		(*tile)->update(dt);
@@ -286,7 +347,10 @@ void hexApp::update()
 				(*tile)->collide(*tile2);
 		}
 	}
-	pgen->update(dt);
+	
+	oscUpdate();
+	 
+	//pgen->update(dt);
 	
 	(*tiles)[3]->item_pos = Vec2f(math<float>::sin(getElapsedSeconds()) * 20.0f, .0f);
 }
@@ -305,6 +369,8 @@ void hexApp::draw()
 	
 	gl::setMatrices(cam);
 	
+	gl::translate(globalTranslate);
+	
 	vector<Tile*>::iterator tile;
 	for(tile = tiles->begin(); tile < tiles->end(); tile++)
 	{
@@ -320,5 +386,11 @@ void hexApp::draw()
 	
 }
 
+void hexApp::shutdown()
+{
+	delete tiles;
+	delete dragging;
+	delete pgen;
+}
 
 CINDER_APP_BASIC( hexApp, RendererGl )
