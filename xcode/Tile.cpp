@@ -15,6 +15,10 @@ Tile::Tile(int _id, Vec2f _pos, float _z, float _phi, float _scale, PolyLine<Vec
 	id = _id;
 	z = _z;
 	
+	selectedCorner = -1;
+	
+	rx = ry = 0;
+	
 	hex = _hex;
 	scale = _scale;
 	
@@ -60,6 +64,7 @@ void Tile::draw(vector<Particle*> &particles)
 	glLineWidth(1.0f);
 	glPushMatrix();
 	
+	/*
 	// fill the alpha component with 1
 	glDisable(GL_BLEND);
 	gl::disableDepthWrite();
@@ -73,13 +78,13 @@ void Tile::draw(vector<Particle*> &particles)
 	gl::enableDepthWrite(true);
 	gl::enableDepthRead(true);
 	glColorMask(GL_TRUE, GL_TRUE, GL_TRUE, GL_TRUE);
-	
+	*/
 	
 	gl::translate(Vec3f(pos.x, pos.y, z));
 	
-	glPushMatrix();
+	//glPushMatrix();
 	
-	gl::rotate(phi);
+	gl::rotate(Vec3f(rx, ry, phi));
 	gl::scale(Vec3f(scale, scale, 1.0f));
 	
 	gl::color(TILECOLOR);
@@ -105,6 +110,20 @@ void Tile::draw(vector<Particle*> &particles)
 	}
 	
 	glEnd();
+	
+	if(selectedCorner >= 0)
+	{
+		//gl::disableDepthRead();
+		glPushMatrix();
+		gl::translate(Vec3f(.0f, .0f, 0.1f));
+		gl::color(Color(1.0f, .0f, .0f));
+		gl::drawSolidCircle(hex->getPoints()[selectedCorner], 5.0f, 16);
+		glPopMatrix();
+		//gl::enableDepthRead(true);
+	}
+	
+	
+	/*
 	
 	// write 0 in the alpha component where our hex is
 	glDisable(GL_BLEND);
@@ -153,7 +172,7 @@ void Tile::draw(vector<Particle*> &particles)
 			if(insidePolygon( (*it)->pos - pos, *hex, scale ))
 			{
 				glPushMatrix();
-				gl::translate(Vec3f((*it)->pos - pos, z+.05f));
+				gl::translate(Vec3f((*it)->pos - pos, z-10.5f));
 				(*it)->draw(scale);
 				glPopMatrix();
 			}
@@ -163,8 +182,13 @@ void Tile::draw(vector<Particle*> &particles)
 		
 	}
 	
+	*/
+	
 	// return to normal alpha blending
 	glBlendFunc (GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+	
+	
+	
 	
 	glPopMatrix();
 }

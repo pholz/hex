@@ -25,10 +25,11 @@ public:
 	
 	Vec2f pos;
 	float z;
-	float phi;
+	float phi, rx, ry;
 	float scale;
 	Tile* connections[6];
 	int state[6];
+	int selectedCorner;
 	
 	Vec2f item_pos;
 	bool item_visible;

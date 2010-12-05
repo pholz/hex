@@ -24,6 +24,8 @@ class hexApp : public AppBasic {
 	Surface surf_tank;
 	CameraOrtho cam;
 	int maxid;
+	float zoom;
+	float defaultfactors[6];
 	
   public:
 	void setup();
@@ -34,6 +36,7 @@ class hexApp : public AppBasic {
 	void draw();
 	void prepareSettings(Settings* settings);
 	void keyDown( KeyEvent event );
+	PolyLine<Vec2f>* genHex(float* factors);
 };
 
 void hexApp::prepareSettings(Settings* settings)
@@ -44,20 +47,30 @@ void hexApp::prepareSettings(Settings* settings)
 	//file_out = ofstream("params.txt");
 }
 
-void hexApp::setup()
+PolyLine<Vec2f>* hexApp::genHex(float* factors)
 {
-	cam = CameraOrtho(0, getWindowWidth(), getWindowHeight(), 0, 0, 1000);
-	cam.lookAt(Vec3f(0, 0, 10.0f), Vec3f(0, 0, .0f));
-	
-	surf_tank = Surface(loadImage(loadResource("tank.png")));
-	
-	hex = new PolyLine<Vec2f>();
+	PolyLine<Vec2f> *hex = new PolyLine<Vec2f>();
 	hex->setClosed(true);
 	
 	for(int i = 0; i < 6; i++)
 	{
-		hex->push_back(cart(TILERAD, (float)i * M_PI/3.0f));
+		hex->push_back(cart(TILERAD * factors[i], (float)i * M_PI/3.0f));
 	}
+	
+	return hex;
+}
+
+void hexApp::setup()
+{
+	cam = CameraOrtho(0, getWindowWidth(), getWindowHeight(), 0, 0, 1000);
+	//cam = CameraPersp( getWindowWidth(), getWindowHeight(), 50, 0.1, 10000 );
+	zoom = 1000.0f;
+	//cam.setWorldUp(Vec3f(.0f, 1.0f, .0f));
+	
+	surf_tank = Surface(loadImage(loadResource("tank.png")));
+	
+	float df[] = {1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f};
+	memcpy(defaultfactors, df, 6 * sizeof(float));
 	
 	
 	tiles = new vector< Tile* >();
@@ -80,12 +93,14 @@ void hexApp::setup()
 		
 		if((int)atoi(strs[0].c_str()) > maxid) maxid = (int)atoi(strs[0].c_str());
 		
+		float facs[] = {strtod(strs[6].c_str(), NULL), strtod(strs[7].c_str(), NULL), strtod(strs[8].c_str(), NULL), strtod(strs[9].c_str(), NULL), strtod(strs[10].c_str(), NULL), strtod(strs[11].c_str(), NULL)};
+		
 		tiles->push_back(new Tile((int)atoi(strs[0].c_str()), //id
 								  Vec2f(strtod(strs[1].c_str(), NULL), strtod(strs[2].c_str(), NULL)), //pos
 								  strtod(strs[3].c_str(), NULL), //z
 								  strtod(strs[4].c_str(), NULL), //phi
 								  strtod(strs[5].c_str(), NULL), //scale
-								  hex, 
+								  genHex(facs), 
 								  s0));
 		
 	}
@@ -117,6 +132,22 @@ void hexApp::keyDown( KeyEvent event )
 	{
 		dragging->scale-=.01f;
 	}
+	if(dragging && event.getChar() == 'i')
+	{
+		dragging->ry-=.5f;
+	}
+	else if(dragging && event.getChar() == 'k')
+	{
+		dragging->ry+=.5f;
+	}
+	if(dragging && event.getChar() == 'j')
+	{
+		dragging->rx-=.5f;
+	}
+	if(dragging && event.getChar() == 'l')
+	{
+		dragging->rx+=.5f;
+	}
 	if(dragging && event.getChar() == 'z')
 	{
 		dragging->z -= .05f;
@@ -133,6 +164,29 @@ void hexApp::keyDown( KeyEvent event )
 	{
 		dragging->pulseSpeed-=.1f;
 	}
+	if(dragging && event.getChar() == 'c')
+	{
+		dragging->selectedCorner++;
+		if(dragging->selectedCorner == 6) dragging->selectedCorner = -1;
+	}
+	if(dragging && event.getChar() == '.' && dragging->selectedCorner >= 0)
+	{
+		dragging->hex->getPoints()[dragging->selectedCorner] += Vec2f( dragging->hex->getPoints()[dragging->selectedCorner].normalized() );
+	}
+	
+	if(dragging && event.getChar() == ',' && dragging->selectedCorner >= 0)
+	{
+		dragging->hex->getPoints()[dragging->selectedCorner] -= Vec2f( dragging->hex->getPoints()[dragging->selectedCorner].normalized() );
+	}
+	
+	if(event.getChar() == ']')
+	{
+		zoom -= 1.0f;
+	}
+	if(event.getChar() == '[')
+	{
+		zoom += 1.0f;
+	}
 	
 	if(event.getChar() == 't')
 	{
@@ -142,7 +196,7 @@ void hexApp::keyDown( KeyEvent event )
 								  .0f, //z
 								  .0f, //phi
 								  1.0f, //scale
-								  hex, 
+								  genHex(defaultfactors), 
 								  s0));
 		++maxid;
 	}
@@ -157,7 +211,20 @@ void hexApp::keyDown( KeyEvent event )
 		{
 			Tile &t = *(*tile);
 			
-			file_out << t.id << "," << t.pos.x << "," << t.pos.y << "," << t.z << "," << t.phi << "," << t.scale << endl; 
+			file_out << t.id << "," << t.pos.x << "," << t.pos.y << "," << t.z << "," << t.phi << "," << t.scale << ",";
+			
+			for(int i = 0; i < 6; i++)
+			{
+				polarCoords pc = polar(t.hex->getPoints()[i]);
+				float factor = pc.r / TILERAD;
+				file_out << factor;
+				
+				if(i < 5)
+					file_out << ",";
+				else
+					file_out << endl;
+				
+			}
 			
 		}
 		
@@ -226,6 +293,9 @@ void hexApp::update()
 
 void hexApp::draw()
 {
+	//cam.lookAt(Vec3f(getWindowWidth()/2, getWindowHeight()/2, -zoom), Vec3f(getWindowWidth()/2, getWindowHeight()/2, .0f), Vec3f(.0f, -1.0f, .0f));
+	cam.lookAt(Vec3f(0, 0, 10), Vec3f(0, 0, 0));
+	
 	glPushMatrix();
 	// clear out the window with black
 	gl::clear( Color( 0, 0, 0 ) ); 
