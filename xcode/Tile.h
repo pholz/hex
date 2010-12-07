@@ -30,6 +30,7 @@ public:
 	Tile* connections[6];
 	int state[6];
 	int selectedCorner;
+	bool highlighted;
 	
 	Vec2f item_pos;
 	bool item_visible;
@@ -44,7 +45,7 @@ public:
 	static int getIndexForAngle(float angle);
 	void setState(const int *_state);
 	void update(float dt);
-	void draw(vector<Particle*> &particles);
+	void draw();
 	void collide(Tile* tile);
 	void connect(Tile* tile, int pos);
 	void disconnect(Tile* tile);

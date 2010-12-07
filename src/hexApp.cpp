@@ -9,7 +9,7 @@
 #include "OscSender.h"
 
 #define OSC_SEND_HOST "localhost"
-#define OSC_SEND_PORT 5000
+#define OSC_SEND_PORT 9000
 #define OSC_RECEIVE_PORT 3000
 
 using namespace ci;
@@ -20,8 +20,9 @@ class hexApp : public AppBasic {
 
 	vector< Tile* > *tiles;
 	Tile* dragging;
+	Tile* highlighted;
 	Vec2f dragoffset;
-	ParticleGen *pgen;
+	vector<ParticleGen*> pgens;
 	float last;
 	//ofstream file_out;
 	//ifstream file_in;
@@ -48,6 +49,9 @@ class hexApp : public AppBasic {
 	PolyLine<Vec2f>* genHex(float* factors);
 	void shutdown();
 	void oscUpdate();
+	void oscSend(string address, float value);
+	void highlightTile();
+	void startAttack(int num);
 };
 
 void hexApp::prepareSettings(Settings* settings)
@@ -75,6 +79,8 @@ void hexApp::setup()
 {
 	sender.setup(OSC_SEND_HOST, OSC_SEND_PORT);
 	listener.setup(OSC_RECEIVE_PORT);
+	
+	highlighted = NULL;
 	
 	globalTranslate = Vec3f(.0f, .0f, .0f);
 	
@@ -123,7 +129,7 @@ void hexApp::setup()
 	
 	dragging = 0;
 	
-	pgen = new ParticleGen(tiles, (*tiles)[1], 2.0f, 15.0f);
+//	pgens.push_back(new ParticleGen(tiles, (*tiles)[0], 1.0f, 5.0f));
 	
 	last = getElapsedSeconds();
 	
@@ -146,11 +152,25 @@ void hexApp::oscUpdate()
 				
 				
 				float vol = message.getArgAsFloat(0);
-				if(dragging)
+				if(highlighted)
 				{
-					dragging->brightness = vol;
+					highlighted->brightness = vol;
 				}
 								
+			} catch (...) {
+				console() << "Exception reading argument as float" << std::endl;
+			}
+		}
+		else if(addr == "/max/doneplaying"  && message.getNumArgs() == 1)
+		{
+			try {
+				
+				
+				float num = message.getArgAsFloat(0);
+				console() << "GOT NUM " << num << endl;
+				
+				startAttack((int) num);
+				
 			} catch (...) {
 				console() << "Exception reading argument as float" << std::endl;
 			}
@@ -158,8 +178,70 @@ void hexApp::oscUpdate()
 	}
 }
 
+void hexApp::oscSend(string address, float value)
+{
+	osc::Message message;
+	message.addFloatArg(value);
+	message.setAddress(address);
+	message.setRemoteEndpoint(OSC_SEND_HOST, OSC_SEND_PORT);
+	sender.sendMessage(message);
+}
+
+void hexApp::highlightTile()
+{
+	Vec2f mpos = getMousePos();
+	
+	if(highlighted)
+	{
+		highlighted->highlighted = false;
+		highlighted->brightness = .0f;
+	}
+		
+	highlighted = NULL;
+	
+	
+	vector<Tile*>::iterator tile;
+	for(tile = tiles->begin(); tile < tiles->end(); tile++)
+	{
+		Vec2f collpos = mpos - (*tile)->pos;
+		if(insidePolygon(collpos, (*(*tile)->hex), (*tile)->scale))
+		{
+			//console() << "dragging on" << endl;
+			//dragoffset = collpos;
+			highlighted = (*tile);
+			highlighted->highlighted = true;
+			
+			oscSend("/cinder/osc/play", (float) highlighted->id);
+		}
+	}
+}
+
+void hexApp::startAttack(int num)
+{
+	vector<Tile*>::iterator tile;
+	for(tile = tiles->begin(); tile < tiles->end(); tile++)
+	{
+		Tile &t = *(*tile);
+		
+		if(t.id == num)
+		{
+			highlighted = NULL;
+			t.highlighted = false;
+			t.brightness = 1.0f;
+			pgens.push_back(new ParticleGen(tiles, *tile, 2.0f, 10.0f ));
+		}
+			
+	}
+}
+
 void hexApp::keyDown( KeyEvent event )
 {
+	
+	if(event.getChar() == ' ')
+	{
+		highlightTile();
+	}
+	
 	if(dragging && event.getChar() == 'a')
 	{
 		dragging->phi-=.5f;
@@ -184,7 +266,7 @@ void hexApp::keyDown( KeyEvent event )
 	{
 		globalTranslate.x -= 1.0f;
 	}
-	else if(event.getChar() == 'p')
+	else if(event.getChar() == '-')
 	{
 		globalTranslate.y += 1.0f;
 	}
@@ -350,6 +432,12 @@ void hexApp::update()
 	
 	oscUpdate();
 	 
+	vector<ParticleGen*>::iterator pgen;
+	for(pgen = pgens.begin(); pgen < pgens.end(); pgen++)
+	{
+		(*pgen)->update(dt);
+	}
+	
 	//pgen->update(dt);
 	
 	(*tiles)[3]->item_pos = Vec2f(math<float>::sin(getElapsedSeconds()) * 20.0f, .0f);
@@ -362,7 +450,7 @@ void hexApp::draw()
 	
 	glPushMatrix();
 	// clear out the window with black
-	gl::clear( Color( 0, 0, 0 ) ); 
+	gl::clear( Color( 0, 0.0f, 0.4f ) ); 
 	gl::enableAlphaBlending();
 	gl::enableDepthRead(true);
 	gl::enableDepthWrite(true);
@@ -374,7 +462,13 @@ void hexApp::draw()
 	vector<Tile*>::iterator tile;
 	for(tile = tiles->begin(); tile < tiles->end(); tile++)
 	{
-		(*tile)->draw(pgen->particles);
+		(*tile)->draw();
+	}
+	
+	vector<ParticleGen*>::iterator pgen;
+	for(pgen = pgens.begin(); pgen < pgens.end(); pgen++)
+	{
+		(*pgen)->draw();
 	}
 	
 	
@@ -390,7 +484,7 @@ void hexApp::shutdown()
 {
 	delete tiles;
 	delete dragging;
-	delete pgen;
+	pgens.clear();
 }
 
 CINDER_APP_BASIC( hexApp, RendererGl )

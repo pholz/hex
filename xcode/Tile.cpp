@@ -16,6 +16,7 @@ Tile::Tile(int _id, Vec2f _pos, float _z, float _phi, float _scale, PolyLine<Vec
 	z = _z;
 	
 	selectedCorner = -1;
+	highlighted = false;
 	
 	rx = ry = 0;
 	
@@ -36,7 +37,7 @@ Tile::Tile(int _id, Vec2f _pos, float _z, float _phi, float _scale, PolyLine<Vec
 	
 	setState(_state);
 	
-	pulseSpeed = .0f;
+	pulseSpeed = .05f;
 	pulseCounter = .0f;
 	brightness = .0f;
 }
@@ -65,7 +66,7 @@ void Tile::update(float dt)
 	}
 }
 
-void Tile::draw(vector<Particle*> &particles)
+void Tile::draw()
 {
 	glLineWidth(1.0f);
 	glPushMatrix();
@@ -167,7 +168,8 @@ void Tile::draw(vector<Particle*> &particles)
 	//gl::drawSolidCircle(Vec2f(20.0f, 20.0f), 60.0f, 16);
 	
 	glPopMatrix();
-	
+	*/
+	/*
 	if(true) 
 	{
 		glPushMatrix();
@@ -191,8 +193,9 @@ void Tile::draw(vector<Particle*> &particles)
 		glPopMatrix();
 		
 	}
+	 */
 	
-	*/
+	
 	
 	// return to normal alpha blending
 	glBlendFunc (GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);

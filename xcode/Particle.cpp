@@ -69,6 +69,7 @@ void Particle::draw(float scale)
 {
 	glPushMatrix();
 	
+	gl::translate(Vec3f(pos, .8f));
 	gl::rotate(-90 + toDegrees(math<float>::atan2(vel.normalized().y, vel.normalized().x)));
 	gl::scale(Vec3f(scale, scale, 1.0f));
 //	gl::color(ColorA(.2f, .2f, .2f, 1.0f));
@@ -81,12 +82,12 @@ void Particle::draw(float scale)
 //	gl::drawSolidRect(Rectf(2, -2, 15, 2));
 	
 	glLineWidth(4.0f);
-	gl::drawLine(Vec2f(-5.0f, -3.0f), Vec2f(.0f, .0f));
-	gl::drawLine(Vec2f(5.0f, -3.0f), Vec2f(.0f, .0f));
+	gl::drawLine(Vec2f(-7.0f, -3.0f), Vec2f(.0f, .0f));
+	gl::drawLine(Vec2f(7.0f, -3.0f), Vec2f(.0f, .0f));
 	
 	gl::translate(Vec2f(0.0f, -5.0f));
-	gl::drawLine(Vec2f(-5.0f, -3.0f), Vec2f(.0f, .0f));
-	gl::drawLine(Vec2f(5.0f, -3.0f), Vec2f(.0f, .0f));
+	gl::drawLine(Vec2f(-7.0f, -3.0f), Vec2f(.0f, .0f));
+	gl::drawLine(Vec2f(7.0f, -3.0f), Vec2f(.0f, .0f));
 	
 //	glEnable(GL_BLEND);
 	
