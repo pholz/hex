@@ -16,7 +16,7 @@ Tile::Tile(int _id, Vec2f _pos, float _z, float _phi, float _scale, PolyLine<Vec
 	z = _z;
 	
 	selectedCorner = -1;
-	highlighted = false;
+	highlighted = selected = false;
 	
 	rx = ry = 0;
 	
@@ -71,26 +71,7 @@ void Tile::draw()
 	glLineWidth(1.0f);
 	glPushMatrix();
 	
-	/*
-	// fill the alpha component with 1
-	glDisable(GL_BLEND);
-	gl::disableDepthWrite();
-	gl::disableDepthRead();
-	glColorMask(GL_FALSE, GL_FALSE, GL_FALSE, GL_TRUE);
-	
-	glColor4f(0, 0, 0, 1);
-	gl::drawSolidRect(Rectf(0, 0, WIDTH, HEIGHT));
-	
-	glEnable(GL_BLEND);
-	gl::enableDepthWrite(true);
-	gl::enableDepthRead(true);
-	glColorMask(GL_TRUE, GL_TRUE, GL_TRUE, GL_TRUE);
-	*/
-	
 	gl::translate(Vec3f(pos.x, pos.y, z));
-	
-	//glPushMatrix();
-	
 	gl::rotate(Vec3f(rx, ry, phi));
 	gl::scale(Vec3f(scale, scale, 1.0f));
 	
@@ -98,13 +79,15 @@ void Tile::draw()
 	
 	gl::draw(*hex);
 	
-	if(!pulseSpeed && !brightness)
+	if(selected)
+		gl::color(Color(.5f, 1.0f, .5f));
+	else if(!pulseSpeed && !brightness)
 		gl::color(TILECOLOR2);
-	else if(brightness)
+	else if(brightness) // brightness from volume
 	{
 		gl::color(Color(brightness, brightness, brightness));
 	}
-	else
+	else // pulsing
 	{
 		float b = math<float>::abs(math<float>::sin(pulseCounter));
 		gl::color(Color(b, b, b));
@@ -124,81 +107,12 @@ void Tile::draw()
 	
 	if(selectedCorner >= 0)
 	{
-		//gl::disableDepthRead();
 		glPushMatrix();
 		gl::translate(Vec3f(.0f, .0f, 0.1f));
 		gl::color(Color(1.0f, .0f, .0f));
 		gl::drawSolidCircle(hex->getPoints()[selectedCorner], 5.0f, 16);
 		glPopMatrix();
-		//gl::enableDepthRead(true);
 	}
-	
-	
-	/*
-	
-	// write 0 in the alpha component where our hex is
-	glDisable(GL_BLEND);
-	gl::disableDepthWrite();
-	gl::disableDepthRead();
-	glColorMask(GL_FALSE, GL_FALSE, GL_FALSE, GL_TRUE);
-	
-	glColor4f(0, 0, 0, 1);
-	gl::drawSolidRect(Rectf(0, 0, WIDTH, HEIGHT));
-	
-	glColor4f(1, 1, 1, 0);
-	
-	glBegin(GL_TRIANGLE_FAN);
-	
-	for(pt = hex->begin(); pt < hex->end(); pt++)
-	{
-		gl::vertex(*pt);
-	}
-	
-	glEnd();
-	
-	// render masked layer on top; where it's zero, set src alpha to 1; set dst alpha to whatever it already is
-	glColorMask(GL_TRUE, GL_TRUE, GL_TRUE, GL_TRUE);
-	glEnable(GL_BLEND);
-	gl::enableDepthWrite(true);
-	gl::enableDepthRead(true);
-	//glBlendFunc(GL_ONE_MINUS_DST_ALPHA, GL_DST_ALPHA);
-	glBlendFunc (GL_ONE_MINUS_DST_ALPHA, GL_DST_ALPHA);
-	
-	//gl::color(Color(1.0f, .0f, .0f));
-	//gl::drawSolidCircle(Vec2f(20.0f, 20.0f), 60.0f, 16);
-	
-	glPopMatrix();
-	*/
-	/*
-	if(true) 
-	{
-		glPushMatrix();
-		
-		
-		//gl::color(Color(.0f, .0f, .0f));
-		//gl::drawSolidRect(Rectf(0, 0, 10, 80));
-		
-		vector<Particle*>::iterator it;
-		for(it = particles.begin(); it < particles.end(); it++)
-		{
-			if(insidePolygon( (*it)->pos - pos, *hex, scale ))
-			{
-				glPushMatrix();
-				gl::translate(Vec3f((*it)->pos - pos, z-10.5f));
-				(*it)->draw(scale);
-				glPopMatrix();
-			}
-		}
-		
-		glPopMatrix();
-		
-	}
-	 */
-	
-	
-	
-	// return to normal alpha blending
-	//glBlendFunc (GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
 	
 	
 	

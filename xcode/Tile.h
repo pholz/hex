@@ -30,7 +30,8 @@ public:
 	Tile* connections[6];
 	int state[6];
 	int selectedCorner;
-	bool highlighted;
+	bool highlighted, selected;
+
 	
 	Vec2f item_pos;
 	bool item_visible;

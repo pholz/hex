@@ -16,8 +16,8 @@
 #define TILECOLOR Color(1.0f, 1.0f, 1.0f)
 #define TILECOLOR2 Color(.6f, .6f, .6f)
 #define PSPEED 1.0f
-#define WIDTH 1280
-#define HEIGHT 1024
+#define WIDTH 1600
+#define HEIGHT 1050
 
 using namespace ci;
 using namespace ci::app;
@@ -27,6 +27,14 @@ typedef struct {
 	float r;
 	float theta;
 } polarCoords;
+
+enum ParticleState {
+	FADEIN,
+	MOVING,
+	BOUNCING,
+	FADEOUT,
+	DYING
+};
 
 
 Vec2f cart(float r, float theta);

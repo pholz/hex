@@ -21,11 +21,10 @@ class hexApp : public AppBasic {
 	vector< Tile* > *tiles;
 	Tile* dragging;
 	Tile* highlighted;
+	Tile* lastSelected;
 	Vec2f dragoffset;
 	vector<ParticleGen*> pgens;
 	float last;
-	//ofstream file_out;
-	//ifstream file_in;
 	
 	Surface surf_tank;
 	Surface surf_plane;
@@ -60,8 +59,6 @@ void hexApp::prepareSettings(Settings* settings)
 {
 	settings->setWindowSize(WIDTH, HEIGHT);
 	//settings->setFullScreen(true);
-	
-	//file_out = ofstream("params.txt");
 }
 
 PolyLine<Vec2f>* hexApp::genHex(float* factors)
@@ -79,34 +76,34 @@ PolyLine<Vec2f>* hexApp::genHex(float* factors)
 
 void hexApp::setup()
 {
+	// init osc
 	sender.setup(OSC_SEND_HOST, OSC_SEND_PORT);
 	listener.setup(OSC_RECEIVE_PORT);
 	
 	highlighted = NULL;
+	dragging = NULL;
+	lastSelected = NULL;
 	
 	globalTranslate = Vec3f(.0f, .0f, .0f);
 	
 	cam = CameraOrtho(0, getWindowWidth(), getWindowHeight(), 0, 0, 1000);
-	//cam = CameraPersp( getWindowWidth(), getWindowHeight(), 50, 0.1, 10000 );
 	zoom = 1000.0f;
-	//cam.setWorldUp(Vec3f(.0f, 1.0f, .0f));
 	
+	// load textures
 	surf_tank = Surface(loadImage(loadResource("tank.png")));
 	surf_plane = Surface(loadImage(loadResource("plane.png")));
 	surf_plane.setPremultiplied(false);
 	tex_plane = new gl::Texture(surf_plane);
 
-	
+	// init default hex vertex multipliers and states (latter unused)
 	float df[] = {1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f};
 	memcpy(defaultfactors, df, 6 * sizeof(float));
-	
-	
 	tiles = new vector< Tile* >();
-	
 	int s0[] = {1, 0, 0, 0, 0, 0};
 	
-	// read tile pos/phi/scale params from file
 	
+	// read tile pos/phi/scale params from file
+	// ---------------------------------------------------------------------------	
 	ifstream file_in("params.txt");
 	
 	maxid = 0;
@@ -133,13 +130,12 @@ void hexApp::setup()
 		
 	}
 	
-	dragging = 0;
+	// ---------------------------------------------------------------------------
+
 	
-//	pgens.push_back(new ParticleGen(tiles, (*tiles)[0], 1.0f, 5.0f));
 	
 	last = getElapsedSeconds();
 	
-	//(*tiles)[3]->item = new gl::Texture(surf_tank);
 }
 
 void hexApp::oscUpdate()
@@ -234,7 +230,7 @@ void hexApp::startAttack(int num)
 			highlighted = NULL;
 			t.highlighted = false;
 			t.brightness = .7f;
-			pgens.push_back(new ParticleGen(tiles, *tile, 2.0f, 10.0f, tex_plane ));
+			pgens.push_back(new ParticleGen(tiles, *tile, *tile, 50.0f, 2.0f, 10.0f, tex_plane ));
 		}
 			
 	}
@@ -248,21 +244,21 @@ void hexApp::keyDown( KeyEvent event )
 		highlightTile();
 	}
 	
-	if(dragging && event.getChar() == 'a')
+	if(lastSelected && event.getChar() == 'a')
 	{
-		dragging->phi-=.5f;
+		lastSelected->phi-=.5f;
 	}
-	else if(dragging && event.getChar() == 'd')
+	else if(lastSelected && event.getChar() == 'd')
 	{
-		dragging->phi+=.5f;
+		lastSelected->phi+=.5f;
 	}
-	else if(dragging && event.getChar() == 'w')
+	else if(lastSelected && event.getChar() == 'w')
 	{
-		dragging->scale+=.01f;
+		lastSelected->scale+=.01f;
 	}
-	else if(dragging && event.getChar() == 's')
+	else if(lastSelected && event.getChar() == 's')
 	{
-		dragging->scale-=.01f;
+		lastSelected->scale-=.01f;
 	}
 	else if(event.getChar() == 'l')
 	{
@@ -280,51 +276,51 @@ void hexApp::keyDown( KeyEvent event )
 	{
 		globalTranslate.y -= 1.0f;
 	}
-	else if(dragging && event.getChar() == 'i')
+	else if(lastSelected && event.getChar() == 'i')
 	{
-		dragging->ry-=.5f;
+		lastSelected->ry-=.5f;
 	}
-	else if(dragging && event.getChar() == 'k')
+	else if(lastSelected && event.getChar() == 'k')
 	{
-		dragging->ry+=.5f;
+		lastSelected->ry+=.5f;
 	}
-	else if(dragging && event.getChar() == 'j')
+	else if(lastSelected && event.getChar() == 'j')
 	{
-		dragging->rx-=.5f;
+		lastSelected->rx-=.5f;
 	}
-	else if(dragging && event.getChar() == 'l')
+	else if(lastSelected && event.getChar() == 'l')
 	{
-		dragging->rx+=.5f;
+		lastSelected->rx+=.5f;
 	}
-	else if(dragging && event.getChar() == 'z')
+	else if(lastSelected && event.getChar() == 'z')
 	{
-		dragging->z -= .05f;
+		lastSelected->z -= .05f;
 	}
-	else if(dragging && event.getChar() == 'x')
+	else if(lastSelected && event.getChar() == 'x')
 	{
-		dragging->z += .05f;
+		lastSelected->z += .05f;
 	}
-	else if(dragging && event.getChar() == '+')
+	else if(lastSelected && event.getChar() == '+')
 	{
-		dragging->pulseSpeed+=.1f;
+		lastSelected->pulseSpeed+=.1f;
 	}
-	else if(dragging && event.getChar() == '-')
+	else if(lastSelected && event.getChar() == '-')
 	{
-		dragging->pulseSpeed-=.1f;
+		lastSelected->pulseSpeed-=.1f;
 	}
-	else if(dragging && event.getChar() == 'c')
+	else if(lastSelected && event.getChar() == 'c')
 	{
-		dragging->selectedCorner++;
-		if(dragging->selectedCorner == 6) dragging->selectedCorner = -1;
+		lastSelected->selectedCorner++;
+		if(lastSelected->selectedCorner == 6) lastSelected->selectedCorner = -1;
 	}
-	else if(dragging && event.getChar() == '.' && dragging->selectedCorner >= 0)
+	else if(lastSelected && event.getChar() == '.' && lastSelected->selectedCorner >= 0)
 	{
-		dragging->hex->getPoints()[dragging->selectedCorner] += Vec2f( dragging->hex->getPoints()[dragging->selectedCorner].normalized() );
+		lastSelected->hex->getPoints()[lastSelected->selectedCorner] += Vec2f( lastSelected->hex->getPoints()[lastSelected->selectedCorner].normalized() );
 	}
 	
-	else if(dragging && event.getChar() == ',' && dragging->selectedCorner >= 0)
+	else if(lastSelected && event.getChar() == ',' && lastSelected->selectedCorner >= 0)
 	{
-		dragging->hex->getPoints()[dragging->selectedCorner] -= Vec2f( dragging->hex->getPoints()[dragging->selectedCorner].normalized() );
+		lastSelected->hex->getPoints()[lastSelected->selectedCorner] -= Vec2f( lastSelected->hex->getPoints()[lastSelected->selectedCorner].normalized() );
 	}
 	
 	else if(event.getChar() == ']')
@@ -386,7 +382,7 @@ void hexApp::keyDown( KeyEvent event )
 void hexApp::mouseDown( MouseEvent event )
 {
 	Vec2f mpos = Vec2f(event.getX(), event.getY());
-	
+	bool hit = false;
 	vector<Tile*>::iterator tile;
 	for(tile = tiles->begin(); tile < tiles->end(); tile++)
 	{
@@ -396,13 +392,18 @@ void hexApp::mouseDown( MouseEvent event )
 			//console() << "dragging on" << endl;
 			dragoffset = collpos;
 			dragging = (*tile);
+			lastSelected = (*tile);
+			hit = true;
 		}
 	}
+	
+	if(!hit)
+		lastSelected = NULL;
 }
 
 void hexApp::mouseUp( MouseEvent event )
 {
-	dragging = 0;
+	dragging = NULL;
 	//console() << "dragging off" << endl;
 }
 
@@ -421,41 +422,93 @@ void hexApp::update()
 	float dt = now - last;
 	last = now;
 	
+	// get new messages
+	oscUpdate();
+	
+	
+	// update tiles
+	// ---------------------------------------------------------------------------
+
 	vector<Tile*>::iterator tile;
-	
-	
 	for(tile = tiles->begin(); tile < tiles->end(); tile++)
 	{
 		(*tile)->update(dt);
-		
-		vector<Tile*>::iterator tile2;
-		for(tile2 = tile; tile2 < tiles->end(); tile2++)
-		{
-			if(tile != tile2)
-				(*tile)->collide(*tile2);
-		}
+		if(lastSelected == (*tile))
+			(*tile)->selected = true;
+		else
+			(*tile)->selected = false;
 	}
-	
-	oscUpdate();
-	 
+	// ---------------------------------------------------------------------------
+
+
+	// update pgens
+	// ---------------------------------------------------------------------------
+
 	vector<ParticleGen*>::iterator pgen;
 	for(pgen = pgens.begin(); pgen < pgens.end(); pgen++)
 	{
-		(*pgen)->update(dt);
+		ParticleGen &pg = *(*pgen);
+		
+		// regular update
+		pg.update(dt);
+		
+		// collide with all other particles 
+		// ---------------------------------------------------------------------------
+
+		vector<Particle*>::iterator partit;
+		for(partit = pg.particles.begin(); partit < pg.particles.end(); partit++)
+		{
+			Particle &part = *(*partit);
+			
+			vector<ParticleGen*>::iterator pgen2;
+			for(pgen2 = pgens.begin(); pgen2 < pgens.end(); pgen2++)
+			{
+				ParticleGen &pg2 = *(*pgen2);
+				
+				// only from other generators
+				if(*pgen != *pgen2)
+				{
+					vector<Particle*>::iterator partit2;
+					for(partit2 = pg2.particles.begin(); partit2 < pg2.particles.end(); partit2++)
+					{
+						Particle &part2 = *(*partit2);
+						
+						if(part.origin != part2.origin && part.pos.distance(part2.pos) < 40.0f && part.state != DYING && part2.state != DYING)
+						{
+							if(part.rand->nextInt(100) > part2.rand->nextInt(100))
+							{
+								part2.setState(DYING, true);
+							}
+							else
+							{
+								part.setState(DYING, true);
+							}
+						}
+					}
+				}
+			}
+		}
+		// ---------------------------------------------------------------------------
+
+		
+		
+		if(pg.ownExpired > pg.ownLifetime)
+		{
+			pgens.erase(pgen);
+		}
 	}
 	
-	//pgen->update(dt);
-	
-	(*tiles)[3]->item_pos = Vec2f(math<float>::sin(getElapsedSeconds()) * 20.0f, .0f);
+	// ---------------------------------------------------------------------------
 }
 
 void hexApp::draw()
 {
 	//cam.lookAt(Vec3f(getWindowWidth()/2, getWindowHeight()/2, -zoom), Vec3f(getWindowWidth()/2, getWindowHeight()/2, .0f), Vec3f(.0f, -1.0f, .0f));
+	
+	// ortho cam
 	cam.lookAt(Vec3f(0, 0, 10), Vec3f(0, 0, 0));
 	
 	glPushMatrix();
-	// clear out the window with black
 	gl::clear( Color( 0, 0.0f, 0.0f ) ); 
 	gl::enableAlphaBlending();
 	gl::enableDepthRead(true);
@@ -465,23 +518,21 @@ void hexApp::draw()
 	
 	gl::translate(globalTranslate);
 	
+	
+	// draw tiles
 	vector<Tile*>::iterator tile;
 	for(tile = tiles->begin(); tile < tiles->end(); tile++)
 	{
 		(*tile)->draw();
 	}
 	
+	// draw pgens
 	vector<ParticleGen*>::iterator pgen;
 	for(pgen = pgens.begin(); pgen < pgens.end(); pgen++)
 	{
 		(*pgen)->draw();
 	}
 	
-	
-	
-//	pgen->draw();
-	
-	//gl::draw(gl::Texture(surf_tank), getWindowBounds());
 	glPopMatrix();
 	
 }

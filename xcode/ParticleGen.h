@@ -13,17 +13,17 @@ class ParticleGen
 {
 public:
 	Tile *tile;
+	Tile *origin;
 	vector<Particle*> particles;
-	float interval, lifetime, acc;
+	float ownLifetime, interval, lifetime, acc, ownExpired;
 	Vec2f pos;
 	Rand *rand;
 	gl::Texture *texture;
 	vector<Tile*> *tiles;
 	
-	ParticleGen(vector<Tile*> *_tiles, Tile* _tile, float _iv, float _lt, gl::Texture* _texture = NULL);
+	ParticleGen(vector<Tile*> *_tiles, Tile* _tile, Tile* _origin, float _olt, float _iv, float _lt, gl::Texture* _texture = NULL);
 	~ParticleGen();
 	
 	void update(float dt);
-	
 	void draw();
 };
