@@ -36,27 +36,27 @@ void ParticleGen::update(float dt)
 	acc += dt;
 	ownExpired += dt;
 	
-	if(ownExpired < ownLifetime - lifetime)
-	{	
-		if(acc > interval)
-		{
-			acc = .0f;
-			particles.push_back(new Particle(tiles, tile, origin, pos, lifetime, rand, texture));
-		}
-		
-		vector<Particle*>::iterator it;
-		for(it = particles.begin(); it < particles.end(); it++)
-		{
-			if((*it)->expired > (*it)->lifetime)
-			{
-				particles.erase(it);
-				continue;
-			}
-			
-			(*it)->update(dt);
-		}
-		
+	
+	
+	if( (ownExpired < ownLifetime - lifetime) && acc > interval)
+	{
+		acc = .0f;
+		particles.push_back(new Particle(tiles, tile, origin, pos, lifetime, rand, texture));
 	}
+	
+	vector<Particle*>::iterator it;
+	for(it = particles.begin(); it < particles.end(); it++)
+	{
+		if((*it)->expired > (*it)->lifetime)
+		{
+			particles.erase(it);
+			continue;
+		}
+		
+		(*it)->update(dt);
+	}
+		
+	
 }
 
 void ParticleGen::draw()

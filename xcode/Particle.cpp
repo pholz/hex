@@ -29,7 +29,7 @@ Particle::Particle(vector<Tile*> *_tiles, Tile *_tile, Tile *_origin, Vec2f _pos
 
 void Particle::setState(ParticleState newstate, bool override)
 {
-	if(state != DYING || override == true)
+	if( (state != DYING && state != BOUNCING) || override == true)
 	{
 		state = newstate;
 	}
@@ -88,8 +88,8 @@ void Particle::update(float dt)
 				polarCoords target = polar(bounce_targetvel);
 				polarCoords current = polar(vel);
 				
-				bounce_rotationstep = (target.theta >= current.theta ? 1.0f : -1.0f) * ( target.theta - current.theta) / .5f;
-				bounce_rotationtime = .5f;
+				bounce_rotationstep = ( target.theta - current.theta) * 4.0f;
+				bounce_rotationtime = .25f;
 			}
 		}
 		
@@ -101,7 +101,7 @@ void Particle::update(float dt)
 		vel.rotate(bounce_rotationstep * dt);
 		bounce_rotationtime -= dt;
 		if(bounce_rotationtime <= .0f)
-			setState(MOVING);
+			setState(MOVING, true);
 		
 	}
 	
