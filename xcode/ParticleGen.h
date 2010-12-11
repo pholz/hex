@@ -17,9 +17,10 @@ public:
 	float interval, lifetime, acc;
 	Vec2f pos;
 	Rand *rand;
+	gl::Texture *texture;
 	vector<Tile*> *tiles;
 	
-	ParticleGen(vector<Tile*> *_tiles, Tile* _tile, float _iv, float _lt);
+	ParticleGen(vector<Tile*> *_tiles, Tile* _tile, float _iv, float _lt, gl::Texture* _texture = NULL);
 	~ParticleGen();
 	
 	void update(float dt);

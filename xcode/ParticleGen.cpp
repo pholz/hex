@@ -9,8 +9,9 @@
 
 #include "ParticleGen.h"
 
-ParticleGen::ParticleGen(vector<Tile*> *_tiles, Tile* _tile, float _iv, float _lt)
+ParticleGen::ParticleGen(vector<Tile*> *_tiles, Tile* _tile, float _iv, float _lt, gl::Texture* _texture)
 {
+	texture = _texture;
 	tiles = _tiles;
 	pos = _tile->pos;
 	tile = _tile;
@@ -34,7 +35,7 @@ void ParticleGen::update(float dt)
 	if(acc > interval)
 	{
 		acc = .0f;
-		particles.push_back(new Particle(tiles, tile, pos, lifetime, rand));
+		particles.push_back(new Particle(tiles, tile, pos, lifetime, rand, texture));
 	}
 	
 	vector<Particle*>::iterator it;

@@ -28,6 +28,8 @@ class hexApp : public AppBasic {
 	//ifstream file_in;
 	
 	Surface surf_tank;
+	Surface surf_plane;
+	gl::Texture *tex_plane;
 	CameraOrtho cam;
 	int maxid;
 	float zoom;
@@ -90,6 +92,10 @@ void hexApp::setup()
 	//cam.setWorldUp(Vec3f(.0f, 1.0f, .0f));
 	
 	surf_tank = Surface(loadImage(loadResource("tank.png")));
+	surf_plane = Surface(loadImage(loadResource("plane.png")));
+	surf_plane.setPremultiplied(false);
+	tex_plane = new gl::Texture(surf_plane);
+
 	
 	float df[] = {1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f};
 	memcpy(defaultfactors, df, 6 * sizeof(float));
@@ -227,8 +233,8 @@ void hexApp::startAttack(int num)
 		{
 			highlighted = NULL;
 			t.highlighted = false;
-			t.brightness = 1.0f;
-			pgens.push_back(new ParticleGen(tiles, *tile, 2.0f, 10.0f ));
+			t.brightness = .7f;
+			pgens.push_back(new ParticleGen(tiles, *tile, 2.0f, 10.0f, tex_plane ));
 		}
 			
 	}
@@ -450,7 +456,7 @@ void hexApp::draw()
 	
 	glPushMatrix();
 	// clear out the window with black
-	gl::clear( Color( 0, 0.0f, 0.4f ) ); 
+	gl::clear( Color( 0, 0.0f, 0.0f ) ); 
 	gl::enableAlphaBlending();
 	gl::enableDepthRead(true);
 	gl::enableDepthWrite(true);

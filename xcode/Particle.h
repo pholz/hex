@@ -20,9 +20,11 @@ public:
 	float expired, lifetime;
 	Rand *rand;
 	
+	gl::Texture *texture;
+	
 	vector<Tile*> *tiles;
 	
-	Particle(vector<Tile*> *_tiles, Tile *_tile, Vec2f _pos, float _lifetime, Rand* _r);
+	Particle(vector<Tile*> *_tiles, Tile *_tile, Vec2f _pos, float _lifetime, Rand* _r, gl::Texture* _texture = NULL);
 	
 	void update(float dt);
 	

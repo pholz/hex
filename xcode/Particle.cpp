@@ -9,11 +9,12 @@
 
 #include "Particle.h"
 	
-Particle::Particle(vector<Tile*> *_tiles, Tile *_tile, Vec2f _pos, float _lifetime, Rand* _r)
+Particle::Particle(vector<Tile*> *_tiles, Tile *_tile, Vec2f _pos, float _lifetime, Rand* _r, gl::Texture * _texture)
 {
 	tiles = _tiles;
 	tile = _tile;
 	lifetime = _lifetime;
+	texture = _texture;
 	pos = _pos;
 	expired = .0f;
 	rand = _r;
@@ -70,7 +71,7 @@ void Particle::draw(float scale)
 	glPushMatrix();
 	
 	gl::translate(Vec3f(pos, .8f));
-	gl::rotate(-90 + toDegrees(math<float>::atan2(vel.normalized().y, vel.normalized().x)));
+	gl::rotate(90 + toDegrees(math<float>::atan2(vel.normalized().y, vel.normalized().x)));
 	gl::scale(Vec3f(scale, scale, 1.0f));
 //	gl::color(ColorA(.2f, .2f, .2f, 1.0f));
 
@@ -81,13 +82,26 @@ void Particle::draw(float scale)
 //	gl::drawSolidCircle(Vec2f(.0f, .0f), 4.0f, 16);
 //	gl::drawSolidRect(Rectf(2, -2, 15, 2));
 	
-	glLineWidth(4.0f);
-	gl::drawLine(Vec2f(-7.0f, -3.0f), Vec2f(.0f, .0f));
-	gl::drawLine(Vec2f(7.0f, -3.0f), Vec2f(.0f, .0f));
+	if(!texture){
+		glLineWidth(4.0f);
+		gl::drawLine(Vec2f(-7.0f, -3.0f), Vec2f(.0f, .0f));
+		gl::drawLine(Vec2f(7.0f, -3.0f), Vec2f(.0f, .0f));
+		
+		gl::translate(Vec2f(0.0f, -5.0f));
+		gl::drawLine(Vec2f(-7.0f, -3.0f), Vec2f(.0f, .0f));
+		gl::drawLine(Vec2f(7.0f, -3.0f), Vec2f(.0f, .0f));
+	} else {
+		gl::enableAlphaBlending();
+		gl::disableDepthWrite();
+		//glBlendFunc (GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+		gl::scale(Vec3f(.05f, .05f, 1.0f));
+		gl::translate(Vec2f(-texture->getWidth(), -texture->getHeight()));
+		gl::draw(*texture);
+		
+		gl::enableDepthWrite();
+	}
 	
-	gl::translate(Vec2f(0.0f, -5.0f));
-	gl::drawLine(Vec2f(-7.0f, -3.0f), Vec2f(.0f, .0f));
-	gl::drawLine(Vec2f(7.0f, -3.0f), Vec2f(.0f, .0f));
+	
 	
 //	glEnable(GL_BLEND);
 	
