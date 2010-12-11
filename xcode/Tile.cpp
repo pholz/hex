@@ -7,6 +7,8 @@
  *
  */
 #include "Tile.h"
+#include <sstream>
+#include "cinder/Text.h"
 
 Tile::Tile(int _id, Vec2f _pos, float _z, float _phi, float _scale, PolyLine<Vec2f>* _hex, int *_state)
 {
@@ -72,6 +74,9 @@ void Tile::draw()
 	glPushMatrix();
 	
 	gl::translate(Vec3f(pos.x, pos.y, z));
+	
+	glPushMatrix();
+	
 	gl::rotate(Vec3f(rx, ry, phi));
 	gl::scale(Vec3f(scale, scale, 1.0f));
 	
@@ -80,7 +85,9 @@ void Tile::draw()
 	gl::draw(*hex);
 	
 	if(selected)
+	{
 		gl::color(Color(.5f, 1.0f, .5f));
+	}
 	else if(!pulseSpeed && !brightness)
 		gl::color(TILECOLOR2);
 	else if(brightness) // brightness from volume
@@ -114,8 +121,24 @@ void Tile::draw()
 		glPopMatrix();
 	}
 	
+	glPopMatrix();
 	
-	
+	if(selected)
+	{
+		
+		gl::color(Color(1.0f, .0f, .0f));
+		TextLayout simple;
+		simple.setFont( Font( "Helvetica", 24 ) );
+		simple.setColor( Color( 1.0f, 1.0f, 1.0f ) );
+		stringstream ss;
+		ss << id;
+		simple.addLine( ss.str() );
+		gl::Texture idtex( simple.render( true, false ) );
+		
+		gl::translate(Vec3f(- idtex.getWidth()/2.0f, - idtex.getHeight()/2.0f, .5f));
+		
+		gl::draw(idtex);
+	}
 	
 	glPopMatrix();
 }
