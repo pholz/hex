@@ -7,6 +7,7 @@
 #include "cinder/Filesystem.h"
 #include "OscListener.h"
 #include "OscSender.h"
+#include "cinder/Display.h"
 
 #define OSC_SEND_HOST "localhost"
 #define OSC_SEND_PORT 9000
@@ -22,9 +23,11 @@ class hexApp : public AppBasic {
 	Tile* dragging;
 	Tile* highlighted;
 	Tile* lastSelected;
+	Tile* navHighlighted;
 	Vec2f dragoffset;
 	vector<ParticleGen*> pgens;
 	float last;
+	Rand *rand;
 	
 	Surface surf_tank;
 	Surface surf_plane;
@@ -52,13 +55,26 @@ class hexApp : public AppBasic {
 	void oscUpdate();
 	void oscSend(string address, float value);
 	void highlightTile();
+	void highlightTile(Tile* tile);
 	void startAttack(int num);
+	void moveHighlight(char dir);
 };
 
 void hexApp::prepareSettings(Settings* settings)
 {
-	settings->setWindowSize(WIDTH, HEIGHT);
+	//settings->setWindowSize(WIDTH, HEIGHT);
 	//settings->setFullScreen(true);
+	
+	vector<shared_ptr<Display> > displays = Display::getDisplays();
+	if(displays.size() > 1)
+	{
+		settings->setDisplay(displays[1]);
+		settings->setFullScreen(true);
+	}
+	else
+	{
+		settings->setWindowSize(WIDTH, HEIGHT);
+	}
 }
 
 PolyLine<Vec2f>* hexApp::genHex(float* factors)
@@ -80,9 +96,11 @@ void hexApp::setup()
 	sender.setup(OSC_SEND_HOST, OSC_SEND_PORT);
 	listener.setup(OSC_RECEIVE_PORT);
 	
+	rand = new Rand();
 	highlighted = NULL;
 	dragging = NULL;
 	lastSelected = NULL;
+	navHighlighted = NULL;
 	
 	globalTranslate = Vec3f(.0f, .0f, .0f);
 	
@@ -126,7 +144,8 @@ void hexApp::setup()
 								  strtod(strs[4].c_str(), NULL), //phi
 								  strtod(strs[5].c_str(), NULL), //scale
 								  genHex(facs), 
-								  s0));
+								  s0,
+								  rand));
 		
 	}
 	
@@ -135,7 +154,7 @@ void hexApp::setup()
 	
 	
 	last = getElapsedSeconds();
-	
+	navHighlighted = (*tiles)[4];
 }
 
 void hexApp::oscUpdate()
@@ -191,7 +210,7 @@ void hexApp::oscSend(string address, float value)
 
 void hexApp::highlightTile()
 {
-	Vec2f mpos = getMousePos();
+	Vec2f mpos = this->getMousePos();
 	
 	if(highlighted)
 	{
@@ -218,6 +237,15 @@ void hexApp::highlightTile()
 	}
 }
 
+void hexApp::highlightTile(Tile* tile)
+{
+
+	highlighted = tile;
+	highlighted->highlighted = true;
+	
+	oscSend("/cinder/osc/play", (float) highlighted->id);
+}
+
 void hexApp::startAttack(int num)
 {
 	vector<Tile*>::iterator tile;
@@ -230,7 +258,7 @@ void hexApp::startAttack(int num)
 			highlighted = NULL;
 			t.highlighted = false;
 			t.brightness = .7f;
-			pgens.push_back(new ParticleGen(tiles, *tile, *tile, 50.0f, 2.0f, 10.0f, tex_plane ));
+			pgens.push_back(new ParticleGen(tiles, *tile, *tile, 90.0f, .7f, 20.0f, tex_plane ));
 		}
 			
 	}
@@ -242,6 +270,11 @@ void hexApp::keyDown( KeyEvent event )
 	if(event.getChar() == ' ')
 	{
 		highlightTile();
+	}
+	
+	if(navHighlighted && event.getChar() == '0' && highlighted == NULL)
+	{
+		highlightTile(navHighlighted);
 	}
 	
 	if(lastSelected && event.getChar() == 'a')
@@ -260,6 +293,8 @@ void hexApp::keyDown( KeyEvent event )
 	{
 		lastSelected->scale-=.01f;
 	}
+	
+	/*
 	else if(event.getChar() == 'l')
 	{
 		globalTranslate.x += 1.0f;
@@ -276,6 +311,8 @@ void hexApp::keyDown( KeyEvent event )
 	{
 		globalTranslate.y -= 1.0f;
 	}
+	 */
+	
 	else if(lastSelected && event.getChar() == 'i')
 	{
 		lastSelected->ry-=.5f;
@@ -341,7 +378,8 @@ void hexApp::keyDown( KeyEvent event )
 								  .0f, //phi
 								  1.0f, //scale
 								  genHex(defaultfactors), 
-								  s0));
+								  s0,
+								  rand));
 		++maxid;
 	}
 	
@@ -373,10 +411,92 @@ void hexApp::keyDown( KeyEvent event )
 		}
 		
 		file_out.close();
-		
-		
 	}
+	else if(event.getChar() == 'l')
+		moveHighlight('N');
+	else if(event.getChar() == ';')
+		moveHighlight('E');
+	else if(event.getChar() == '\'')
+		moveHighlight('S');
+	else if(event.getChar() == '\\')
+		moveHighlight('W');
 	 
+}
+
+void hexApp::moveHighlight(char dir)
+{
+	
+	if(!navHighlighted)
+		return;
+	
+	Tile &hi = *navHighlighted;
+	
+//	vector<Tile*> g
+	
+	float min_delta = 100000.0f;
+	Tile* min_tile = NULL;
+	
+	vector<Tile*>::iterator tile;
+	for(tile = tiles->begin(); tile < tiles->end(); tile++)
+	{
+	
+		Tile &t = *(*tile);
+		if(hi.id == t.id) continue; 
+		
+		
+		
+		switch(dir)
+		{
+			case 'E':
+				if(t.pos.y > hi.pos.y - 100.0f && t.pos.y < hi.pos.y + 100.0f)
+				{
+					if(t.pos.x > hi.pos.x && (t.pos.x-hi.pos.x) < min_delta)
+					{
+						min_delta = t.pos.x-hi.pos.x;
+						min_tile = *tile;
+					}
+				}
+				break;
+			case 'W':
+				if(t.pos.y > hi.pos.y - 100.0f && t.pos.y < hi.pos.y + 100.0f)
+				{
+					if(t.pos.x < hi.pos.x && hi.pos.x-t.pos.x < min_delta)
+					{
+						min_delta = hi.pos.x-t.pos.x;
+						min_tile = *tile;
+					}
+				}
+				break;
+			case 'S':
+				if(t.pos.x > hi.pos.x - 100.0f && t.pos.x < hi.pos.x + 100.0f)
+				{
+					if(t.pos.y > hi.pos.y && t.pos.y-hi.pos.y < min_delta)
+					{
+						min_delta = t.pos.y-hi.pos.y;
+						min_tile = *tile;
+					}
+				}
+				break;
+			case 'N':
+				if(t.pos.x > hi.pos.x - 100.0f && t.pos.x < hi.pos.x + 100.0f)
+				{
+					if(t.pos.y < hi.pos.y && hi.pos.y-t.pos.y < min_delta)
+					{
+						min_delta = hi.pos.y-t.pos.y;
+						min_tile = *tile;
+					}
+				}
+				break;
+			default:
+				break;
+		}
+
+	}
+	
+	if(min_tile)
+	{
+		navHighlighted = min_tile;
+	}
 }
 
 void hexApp::mouseDown( MouseEvent event )
@@ -437,6 +557,17 @@ void hexApp::update()
 			(*tile)->selected = true;
 		else
 			(*tile)->selected = false;
+		
+		if(navHighlighted == (*tile))
+			(*tile)->navHighlighted = true;
+		else
+			(*tile)->navHighlighted = false;
+		
+		if(highlighted == (*tile))
+			(*tile)->highlighted = true;
+		else
+			(*tile)->highlighted = false;
+		 
 	}
 	// ---------------------------------------------------------------------------
 

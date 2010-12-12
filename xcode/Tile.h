@@ -30,18 +30,19 @@ public:
 	Tile* connections[6];
 	int state[6];
 	int selectedCorner;
-	bool highlighted, selected;
+	bool highlighted, selected, navHighlighted;
 
 	
 	Vec2f item_pos;
 	bool item_visible;
 	gl::Texture *item;
+	Rand* rand;
 	
-	float pulseSpeed;
-	float pulseCounter;
+	float pulseSpeed, navHiPulseSpeed;
+	float pulseCounter, navHiPulseCounter;
 	float brightness;
 	
-	Tile(int _id, Vec2f _pos, float z, float _phi, float _scale, PolyLine<Vec2f>* _hex, int *_state);
+	Tile(int _id, Vec2f _pos, float z, float _phi, float _scale, PolyLine<Vec2f>* _hex, int *_state, Rand* _rand);
 	~Tile();
 	static int getIndexForAngle(float angle);
 	void setState(const int *_state);

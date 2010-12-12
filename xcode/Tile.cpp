@@ -10,15 +10,17 @@
 #include <sstream>
 #include "cinder/Text.h"
 
-Tile::Tile(int _id, Vec2f _pos, float _z, float _phi, float _scale, PolyLine<Vec2f>* _hex, int *_state)
+Tile::Tile(int _id, Vec2f _pos, float _z, float _phi, float _scale, PolyLine<Vec2f>* _hex, int *_state, Rand* _rand)
 {
 	pos = _pos;
 	phi = _phi;
 	id = _id;
 	z = _z;
 	
+	rand = _rand;
+	
 	selectedCorner = -1;
-	highlighted = selected = false;
+	highlighted = selected = navHighlighted = false;
 	
 	rx = ry = 0;
 	
@@ -39,14 +41,16 @@ Tile::Tile(int _id, Vec2f _pos, float _z, float _phi, float _scale, PolyLine<Vec
 	
 	setState(_state);
 	
-	pulseSpeed = .05f;
-	pulseCounter = .0f;
+	pulseSpeed = rand->nextFloat(.1, .25);
+	navHiPulseSpeed = .0f;
+	pulseCounter = navHiPulseCounter = .0f;
 	brightness = .0f;
 }
 
 Tile::~Tile()
 {
 	delete hex;
+	delete rand;
 }
 
 int Tile::getIndexForAngle(float angle)
@@ -66,6 +70,11 @@ void Tile::update(float dt)
 	{
 		pulseCounter += dt * pulseSpeed * M_PI;
 	}
+	
+	if(navHiPulseSpeed > .0f)
+	{
+		navHiPulseCounter += dt * navHiPulseSpeed * M_PI;
+	}
 }
 
 void Tile::draw()
@@ -82,21 +91,29 @@ void Tile::draw()
 	
 	gl::color(TILECOLOR);
 	
-	gl::draw(*hex);
+//	gl::draw(*hex);
+	
 	
 	if(selected)
 	{
 		gl::color(Color(.5f, 1.0f, .5f));
 	}
-	else if(!pulseSpeed && !brightness)
-		gl::color(TILECOLOR2);
-	else if(brightness) // brightness from volume
+	else if(highlighted) // brightness from volume
 	{
-		gl::color(Color(brightness, brightness, brightness));
+		gl::color(Color(brightness, 0, 0));
 	}
+	else if(navHighlighted)
+	{
+		//gl::color(Color(1.0f, .0f, .0f));
+		navHiPulseSpeed = 3.0f;
+		float b = math<float>::abs(math<float>::sin(navHiPulseCounter));
+		gl::color(Color(b, b, b));
+	}
+	else if(!pulseSpeed)
+		gl::color(TILECOLOR2);
 	else // pulsing
 	{
-		float b = math<float>::abs(math<float>::sin(pulseCounter));
+		float b = math<float>::abs(math<float>::sin(pulseCounter)) * .5f + .2f;
 		gl::color(Color(b, b, b));
 	}
 		
@@ -107,7 +124,12 @@ void Tile::draw()
 	
 	for(pt = hex->begin(); pt < hex->end(); pt++)
 	{
-		gl::vertex(*pt);
+		try{
+			gl::vertex(*pt);
+		} catch (...) {
+			
+		}
+		
 	}
 	
 	glEnd();
