@@ -34,7 +34,9 @@ enum ParticleState {
 	MOVING,
 	BOUNCING,
 	FADEOUT,
-	DYING
+	DYING,
+	DEAD,
+	OVERSEA
 };
 
 

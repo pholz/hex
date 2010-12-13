@@ -29,14 +29,14 @@ class hexApp : public AppBasic {
 	float last;
 	Rand *rand;
 	
-	Surface surf_tank;
-	Surface surf_plane;
-	gl::Texture *tex_plane;
+	Surface surf_tank, surf_plane, surf_plane_inv, surf_dead;
+	gl::Texture *tex_plane, *tex_plane_inv, *tex_dead;
 	CameraOrtho cam;
 	int maxid;
 	float zoom;
 	float defaultfactors[6];
 	Vec3f globalTranslate;
+	bool first;
 	
 	osc::Listener listener;
 	osc::Sender sender;
@@ -96,6 +96,10 @@ void hexApp::setup()
 	sender.setup(OSC_SEND_HOST, OSC_SEND_PORT);
 	listener.setup(OSC_RECEIVE_PORT);
 	
+	oscSend("/cinder/osc/start", 1.0f);
+	
+	first = true;
+	
 	rand = new Rand();
 	highlighted = NULL;
 	dragging = NULL;
@@ -111,7 +115,13 @@ void hexApp::setup()
 	surf_tank = Surface(loadImage(loadResource("tank.png")));
 	surf_plane = Surface(loadImage(loadResource("plane.png")));
 	surf_plane.setPremultiplied(false);
+	surf_plane_inv = Surface(loadImage(loadResource("plane_inv.png")));
+	surf_plane_inv.setPremultiplied(false);
+	surf_dead = Surface(loadImage(loadResource("dead.png")));
+	surf_dead.setPremultiplied(false);
 	tex_plane = new gl::Texture(surf_plane);
+	tex_plane_inv = new gl::Texture(surf_plane_inv);
+	tex_dead = new gl::Texture(surf_dead);
 
 	// init default hex vertex multipliers and states (latter unused)
 	float df[] = {1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f};
@@ -239,10 +249,8 @@ void hexApp::highlightTile()
 
 void hexApp::highlightTile(Tile* tile)
 {
-
 	highlighted = tile;
 	highlighted->highlighted = true;
-	
 	oscSend("/cinder/osc/play", (float) highlighted->id);
 }
 
@@ -258,7 +266,7 @@ void hexApp::startAttack(int num)
 			highlighted = NULL;
 			t.highlighted = false;
 			t.brightness = .7f;
-			pgens.push_back(new ParticleGen(tiles, *tile, *tile, 90.0f, .7f, 20.0f, tex_plane ));
+			pgens.push_back(new ParticleGen(tiles, *tile, *tile, 90.0f, .7f, 20.0f, tex_plane, tex_plane_inv ));
 		}
 			
 	}
@@ -272,9 +280,13 @@ void hexApp::keyDown( KeyEvent event )
 		highlightTile();
 	}
 	
-	if(navHighlighted && event.getChar() == '0' && highlighted == NULL)
+	if(navHighlighted && event.getChar() == '0')
 	{
-		highlightTile(navHighlighted);
+		
+		if(highlighted == NULL)
+			highlightTile(navHighlighted);
+		else
+			oscSend("/cinder/osc/no", 1.0f);
 	}
 	
 	if(lastSelected && event.getChar() == 'a')
@@ -552,7 +564,7 @@ void hexApp::update()
 	vector<Tile*>::iterator tile;
 	for(tile = tiles->begin(); tile < tiles->end(); tile++)
 	{
-		(*tile)->update(dt);
+		
 		if(lastSelected == (*tile))
 			(*tile)->selected = true;
 		else
@@ -567,6 +579,8 @@ void hexApp::update()
 			(*tile)->highlighted = true;
 		else
 			(*tile)->highlighted = false;
+		
+		(*tile)->update(dt);
 		 
 	}
 	// ---------------------------------------------------------------------------
@@ -604,7 +618,7 @@ void hexApp::update()
 					{
 						Particle &part2 = *(*partit2);
 						
-						if(part.origin != part2.origin && part.pos.distance(part2.pos) < 40.0f && part.state != DYING && part2.state != DYING)
+						if(part.origin != part2.origin && part.pos.distance(part2.pos) < 20.0f && part.state != DYING && part2.state != DYING)
 						{
 							if(part.rand->nextInt(100) > part2.rand->nextInt(100))
 							{
@@ -614,6 +628,8 @@ void hexApp::update()
 							{
 								part.setState(DYING, true);
 							}
+							
+							oscSend("/cinder/osc/fight", 1.0f);
 						}
 					}
 				}
@@ -657,6 +673,17 @@ void hexApp::draw()
 		(*tile)->draw();
 	}
 	
+	vector<Particle*>::iterator rem;
+	for(rem = Particle::remains->begin(); rem < Particle::remains->end(); rem++)
+	{
+		(*rem)->setState(DEAD, true);
+		
+		if((*rem)->texture_dead == NULL)
+			(*rem)->texture_dead = tex_dead;
+		(*rem)->draw(.3f);
+	}
+	
+	
 	// draw pgens
 	vector<ParticleGen*>::iterator pgen;
 	for(pgen = pgens.begin(); pgen < pgens.end(); pgen++)
@@ -664,12 +691,14 @@ void hexApp::draw()
 		(*pgen)->draw();
 	}
 	
+	
 	glPopMatrix();
 	
 }
 
 void hexApp::shutdown()
 {
+	oscSend("/cinder/osc/stop", 1.0f);
 	delete tiles;
 	delete dragging;
 	pgens.clear();

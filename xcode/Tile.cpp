@@ -90,10 +90,7 @@ void Tile::draw()
 	gl::scale(Vec3f(scale, scale, 1.0f));
 	
 	gl::color(TILECOLOR);
-	
-//	gl::draw(*hex);
-	
-	
+
 	if(selected)
 	{
 		gl::color(Color(.5f, 1.0f, .5f));
@@ -104,10 +101,9 @@ void Tile::draw()
 	}
 	else if(navHighlighted)
 	{
-		//gl::color(Color(1.0f, .0f, .0f));
 		navHiPulseSpeed = 3.0f;
 		float b = math<float>::abs(math<float>::sin(navHiPulseCounter));
-		gl::color(Color(b, b, b));
+		gl::color(Color(b/2.0f, b/2.0f, b));
 	}
 	else if(!pulseSpeed)
 		gl::color(TILECOLOR2);
@@ -118,21 +114,29 @@ void Tile::draw()
 	}
 		
 	
+	
 	glBegin(GL_TRIANGLE_FAN);
 	
 	PolyLine<Vec2f>::iterator pt;
-	
 	for(pt = hex->begin(); pt < hex->end(); pt++)
 	{
-		try{
-			gl::vertex(*pt);
-		} catch (...) {
-			
-		}
-		
+		gl::vertex(*pt);
 	}
 	
 	glEnd();
+	
+	if(highlighted)
+	{
+		gl::color(Color(brightness + 0.25, 0, 0));
+		glPushMatrix();
+		gl::translate(Vec3f(0, 0, 0.1f));
+		gl::scale(Vec3f(brightness, brightness, 1.0f));
+		
+		gl::draw(*hex);
+		
+		glPopMatrix();
+	}
+	
 	
 	if(selectedCorner >= 0)
 	{

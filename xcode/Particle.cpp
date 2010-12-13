@@ -9,13 +9,15 @@
 
 #include "Particle.h"
 	
-Particle::Particle(vector<Tile*> *_tiles, Tile *_tile, Tile *_origin, Vec2f _pos, float _lifetime, Rand* _r, gl::Texture * _texture)
+Particle::Particle(vector<Tile*> *_tiles, Tile *_tile, Tile *_origin, Vec2f _pos, float _lifetime, Rand* _r, gl::Texture * _texture, gl::Texture * _texture_inv)
 {
 	tiles = _tiles;
 	tile = _tile;
 	origin = _origin;
 	lifetime = _lifetime;
 	texture = _texture;
+	texture_inv = _texture_inv;
+	texture_dead = NULL;
 	pos = _pos;
 	expired = .0f;
 	alpha = .0f;
@@ -81,7 +83,7 @@ void Particle::update(float dt)
 				}
 			}
 			
-			if(!wander)
+			if(!wander && rand->nextInt(100) > 30)
 			{
 				setState(BOUNCING);
 				bounce_targetvel = Vec2f(rand->nextFloat(-PSPEED, PSPEED), rand->nextFloat(-PSPEED, PSPEED));
@@ -91,8 +93,37 @@ void Particle::update(float dt)
 				bounce_rotationstep = ( target.theta - current.theta) * 4.0f;
 				bounce_rotationtime = .25f;
 			}
+			else if(!wander)
+			{
+				setState(OVERSEA);
+			}
 		}
 		
+	}
+	
+	if(state == OVERSEA)
+	{
+		if(rand->nextInt(100) > 90)
+		{
+			lastarc = rand->nextFloat(-.01f, .01f);
+		}
+		vel.rotate(lastarc);
+		Vec2f newpos = pos + vel;
+		pos = newpos;
+		
+		Vec2f newpos2 = pos + vel * 15.0f;
+		
+		bool wander = false;
+		
+		vector<Tile*>::iterator tileit;
+		for(tileit = tiles->begin(); tileit < tiles->end(); tileit++)
+		{
+			if(insidePolygon(newpos2 - (*tileit)->pos, *(*tileit)->hex, (*tileit)->scale))
+			{
+				setState(MOVING);
+				tile = *tileit;
+			}
+		}
 	}
 	
 	if(state == BOUNCING)
@@ -122,6 +153,10 @@ void Particle::update(float dt)
 		if(dying_time > 3.0f)
 		{
 			expired = lifetime;
+			
+			Particle::remains->push_back(this);
+			dying_time = .0f;
+			
 		}
 		
 	}
@@ -132,6 +167,8 @@ void Particle::update(float dt)
 
 void Particle::draw(float scale)
 {
+	if(pos.y > 850) return;
+	
 	glPushMatrix();
 	
 	gl::translate(Vec3f(pos, .8f));
@@ -146,7 +183,8 @@ void Particle::draw(float scale)
 //	gl::drawSolidCircle(Vec2f(.0f, .0f), 4.0f, 16);
 //	gl::drawSolidRect(Rectf(2, -2, 15, 2));
 	
-	if(!texture){
+	if(!texture)
+	{
 		glLineWidth(4.0f);
 		gl::drawLine(Vec2f(-7.0f, -3.0f), Vec2f(.0f, .0f));
 		gl::drawLine(Vec2f(7.0f, -3.0f), Vec2f(.0f, .0f));
@@ -154,20 +192,36 @@ void Particle::draw(float scale)
 		gl::translate(Vec2f(0.0f, -5.0f));
 		gl::drawLine(Vec2f(-7.0f, -3.0f), Vec2f(.0f, .0f));
 		gl::drawLine(Vec2f(7.0f, -3.0f), Vec2f(.0f, .0f));
-	} else if(state != DYING) {
+	} 
+	else if(state != DYING && state != DEAD) 
+	{
 		gl::enableAlphaBlending();
 		gl::disableDepthWrite();
 		//glBlendFunc (GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
 		gl::scale(Vec3f(.05f, .05f, 1.0f));
 		gl::translate(Vec2f(-texture->getWidth(), -texture->getHeight()));
-		gl::draw(*texture);
+		
+		if(state == OVERSEA)
+			gl::draw(*texture_inv);
+		else
+			gl::draw(*texture);
 		
 		gl::enableDepthWrite();
-	} else {
+	} 
+	else if (state == DYING)
+	{ // dying
 		gl::enableAlphaBlending();
 		gl::disableDepthWrite();
 		gl::color(ColorA(1.0f, .0f, .0f, 1.0f-dying_time/3.0f));
 		gl::drawSolidCircle(Vec2f(.0f,.0f), 10.0f-dying_time*2.0f, 32);
+	}
+	else if (state == DEAD)
+	{
+		gl::enableAlphaBlending();
+		gl::disableDepthWrite();
+		gl::color(ColorA(1.0f, .0f, .0f, .5f));
+		gl::rotate(45);
+		gl::draw(*texture_dead);
 	}
 	
 	
@@ -179,5 +233,5 @@ void Particle::draw(float scale)
 	
 }
 
-
+vector<Particle*>* Particle::remains = new vector<Particle*>();
 
